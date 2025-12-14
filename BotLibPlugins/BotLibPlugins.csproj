@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath></BaseOutputPath>
+  </PropertyGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="del /s /q &quot;$(SolutionDir)Commander\bin\$(Configuration)\net9.0-windows\Plugins\*&quot;&#xA;xcopy &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Commander\bin\$(Configuration)\net9.0-windows\Plugins\&quot; /Y /R /I&#xA;xcopy &quot;$(TargetDir)*.pdb&quot; &quot;$(SolutionDir)Commander\bin\$(Configuration)\net9.0-windows\Plugins\&quot; /Y /R /I&#xA;" />
+  </Target>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BotLib\BotLib.csproj" />
+  </ItemGroup>
+
+</Project>

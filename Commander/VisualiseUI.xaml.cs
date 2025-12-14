@@ -1,0 +1,116 @@
+﻿using eve_parse_ui;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+
+namespace Commander
+{
+  /// <summary>
+  /// Interaction logic for VisualiseUI.xaml
+  /// </summary>
+  public partial class VisualiseUI : Window
+  {
+    public VisualiseUI()
+    {
+      InitializeComponent();
+    }
+
+    public async Task VisualiseAsync(ParsedUserInterface root)
+    {
+      await DrawAllChildrenAsync(root.UiTree, string.Empty);
+    }
+
+    private async Task DrawAllChildrenAsync(UITreeNodeNoDisplayRegion node, string pathSoFar)
+    {
+      var thisNodeType = node.pythonObjectTypeName;
+      var thisNodeName = node.GetNameFromDictEntries();
+
+      var description = thisNodeType;
+      if (thisNodeName != null)
+      {
+        description += " [" + thisNodeName + "]";
+      }
+
+      var newPath = pathSoFar + " > " + description;
+
+      DrawNode(node, newPath);
+      foreach (var item in node.Children ?? [])
+      {
+        await DrawAllChildrenAsync(item, newPath);
+      }
+    }
+
+    // < Frame BorderBrush = "Black" BorderThickness = "0.2" Width = "100" Height = "100" HorizontalAlignment = "Left" VerticalAlignment = "Top" Margin = "100,100,0,0" ></ Frame >
+    private void DrawNode(UITreeNodeNoDisplayRegion? node, string path)
+    {
+
+      if (node is UITreeNodeWithDisplayRegion uiTreeNodeWithDisplayRegion)
+      {
+        //var region = uiTreeNodeWithDisplayRegion.TotalDisplayRegion;
+        var region = uiTreeNodeWithDisplayRegion.TotalDisplayRegionVisible;
+
+        var margin = new Thickness(region.X, region.Y, 0, 0);
+
+        var dictEntries = node.dictEntriesOfInterest
+            .Select(de => de.Key + " = " + de.Value.ToString())
+            .Aggregate((s1, s2) => s1 + "\n" + s2);
+
+        var otherEntries = node.otherDictEntriesKeys.Aggregate((s1, s2) => s1 + "\n" + s2);
+
+        var frame = new Frame
+        {
+          BorderBrush = new SolidColorBrush(Colors.Black),
+          BorderThickness = new Thickness(0.2),
+          HorizontalAlignment = HorizontalAlignment.Left,
+          VerticalAlignment = VerticalAlignment.Top,
+          Width = region.Width,
+          Height = region.Height,
+          Margin = margin,
+          Tag = path + "\n" + dictEntries + "\n" + otherEntries
+        };
+        frame.MouseEnter += EveRoot_MouseEnter;
+        frame.MouseLeave += EveRoot_MouseLeave;
+
+        EveRoot.Children.Add(frame);
+        //await Task.Delay(1);
+      }
+    }
+
+    private void EveRoot_MouseLeave(object sender, MouseEventArgs e)
+    {
+      if (sender is Frame frame)
+      {
+        frame.BorderBrush = new SolidColorBrush(Colors.Black);
+      }
+    }
+
+    private void EveRoot_MouseEnter(object sender, MouseEventArgs e)
+    {
+      if (sender is Frame frame)
+      {
+        frame.BorderBrush = new SolidColorBrush(Colors.Red);
+
+        var path = frame.Tag as string;
+        if (path != null)
+        {
+          // display the full path
+          Path.Text = path;
+          Path.Width = this.ActualWidth / 3;
+
+          // If the mouse is on the left of the screen
+          var mousePosition = Mouse.GetPosition(this);
+          if (mousePosition.X < this.ActualWidth / 2)
+          {
+            // Locate the Path Label to the right half of the screen
+            Path.HorizontalAlignment = HorizontalAlignment.Right;
+          }
+          else
+          {
+            Path.HorizontalAlignment = HorizontalAlignment.Left;
+          }
+        }
+      }
+    }
+  }
+}

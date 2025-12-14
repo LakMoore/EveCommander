@@ -1,0 +1,22 @@
+﻿<Window x:Class="Commander.CommanderMain"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Commander"
+        mc:Ignorable="d"
+        Title="Commander" Height="450" Width="800">
+  <Grid>
+    <StackPanel>
+      <Grid>
+        <StackPanel Orientation="Horizontal"  HorizontalAlignment="Left">
+          <Button x:Name="Start" Padding="10, 5" Margin="10" Click="Start_Click">Start</Button>
+          <Button x:Name="Stop" Padding="10, 5" Margin="10" Click="Stop_Click">Ctrl+F8 to Stop</Button>
+          <Button Padding="10, 5" Margin="10" Click="CloseAll_Click">Close All Clients</Button>
+        </StackPanel>
+        <Button x:Name="SetPlugins" Padding="10, 5" Margin="10" Click="SetPlugins_Click" HorizontalAlignment="Right">Set Plugins</Button>
+      </Grid>
+      <StackPanel x:Name="ClientPanel"></StackPanel>
+    </StackPanel>
+  </Grid>
+</Window>
