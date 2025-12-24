@@ -18,15 +18,15 @@ namespace BotLib
         _UI.StationWindow != null;
 
     public string CurrentSystemName() =>
-        _UI.InfoPanelContainer?.InfoPanelLocationInfo?.CurrentSolarSystemName ?? "Unknown System";
+        _UI.InfoPanelContainer.Value?.InfoPanelLocationInfo?.CurrentSolarSystemName ?? "Unknown System";
 
     public double CurrentSystemSecStatus() =>
-        (double)(_UI.InfoPanelContainer?.InfoPanelLocationInfo?.SecurityStatusPercent ?? 0) / 100.0;
+        (double)(_UI.InfoPanelContainer.Value?.InfoPanelLocationInfo?.SecurityStatusPercent ?? 0) / 100.0;
 
     public Color CurrentSystemSecStatusColor()
     {
       var converter = new ColorConverter();
-      var colorCode = _UI.InfoPanelContainer?.InfoPanelLocationInfo?.SecurityStatusColor ?? "#FF000000";
+      var colorCode = _UI.InfoPanelContainer.Value?.InfoPanelLocationInfo?.SecurityStatusColor ?? "#FF000000";
       var color = converter.ConvertFromString(colorCode);
       if (color == null)
         return Color.White;
@@ -34,21 +34,21 @@ namespace BotLib
     }
 
     public string? DockedInStationName() =>
-        _UI.InfoPanelContainer?.InfoPanelLocationInfo?.ExpandedContent?.CurrentStationName;
+        _UI.InfoPanelContainer.Value?.InfoPanelLocationInfo?.ExpandedContent?.CurrentStationName;
 
     public bool IsAutopilotDestinationSet()
     {
-      return _UI.InfoPanelContainer?.InfoPanelRoute?.RouteElementMarkers?.Count > 0;
+      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers?.Count > 0;
     }
 
     public UIElement? AutopilotMenuButton()
     {
-      return _UI.InfoPanelContainer?.InfoPanelRoute?.AutopilotMenuButton.ToUIElement();
+      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.AutopilotMenuButton.ToUIElement();
     }
 
     public bool IsAutopilotRouteVisible()
     {
-      return _UI.InfoPanelContainer?.InfoPanelRoute?.IsExpanded == true;
+      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.IsExpanded == true;
     }
 
     public bool IsInSessionChange()
@@ -58,27 +58,27 @@ namespace BotLib
 
     public bool IsInWarp()
     {
-      return _UI.ShipUI?.Indication?.ManeuverType == ShipManeuverType.ManeuverWarp;
+      return _UI.ShipUI.Value?.Indication?.ManeuverType == ShipManeuverType.ManeuverWarp;
     }
 
     public bool IsDocking()
     {
-      return _UI.ShipUI?.Indication?.ManeuverType == ShipManeuverType.ManeuverDock;
+      return _UI.ShipUI.Value?.Indication?.ManeuverType == ShipManeuverType.ManeuverDock;
     }
 
     public bool IsAligning()
     {
-      return _UI.ShipUI?.Indication?.ManeuverType == ShipManeuverType.ManeuverAlign;
+      return _UI.ShipUI.Value?.Indication?.ManeuverType == ShipManeuverType.ManeuverAlign;
     }
 
     public bool IsApproaching()
     {
-      return _UI.ShipUI?.Indication?.ManeuverType == ShipManeuverType.ManeuverApproach;
+      return _UI.ShipUI.Value?.Indication?.ManeuverType == ShipManeuverType.ManeuverApproach;
     }
 
     public bool IsJumping()
     {
-      return _UI.ShipUI?.Indication?.ManeuverType == ShipManeuverType.ManeuverJump;
+      return _UI.ShipUI.Value?.Indication?.ManeuverType == ShipManeuverType.ManeuverJump;
     }
 
     public bool IsPlanetsWindowOpen()
@@ -178,7 +178,7 @@ namespace BotLib
 
     public UIElement? AutopilotNextWaypoint()
     {
-      var routeMarkers = _UI.InfoPanelContainer?.InfoPanelRoute?.RouteElementMarkers;
+      var routeMarkers = _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers;
       if (routeMarkers == null || routeMarkers.Count == 0)
         return null;
       return routeMarkers[0].UiNode.ToUIElement();
@@ -258,12 +258,12 @@ namespace BotLib
 
     public int GetShipSpeed()
     {
-      return _UI.ShipUI?.CurrentSpeed ?? 0;
+      return _UI.ShipUI.Value?.CurrentSpeed ?? 0;
     }
 
     public IEnumerable<OverviewWindowEntry> GetOverviewEntries()
     {
-      return _UI.OverviewWindows
+      return _UI.OverviewWindows.Value
           .SelectMany(window => window.Entries) ?? [];
     }
 
@@ -273,7 +273,7 @@ namespace BotLib
 
     public ShipUIModuleButton? GetCloakModule()
     {
-      return _UI.ShipUI?.ModuleButtons?.FirstOrDefault(mb => cloakIDs.Contains(mb.TypeID ?? -1));
+      return _UI.ShipUI.Value?.ModuleButtons?.FirstOrDefault(mb => cloakIDs.Contains(mb.TypeID ?? -1));
     }
 
     public bool IsCloaked()
@@ -288,7 +288,7 @@ namespace BotLib
 
     public List<string> DefensiveBuffs()
     {
-      return _UI.ShipUI?.DefensiveBuffs ?? [];
+      return _UI.ShipUI.Value?.DefensiveBuffs ?? [];
     }
 
     public bool IsTethered()
@@ -314,7 +314,7 @@ namespace BotLib
       if (e != null)
       {
         var icon = e.UiNode.GetDescendantsByType("Sprite")
-          .FirstOrDefault(u => 
+          .FirstOrDefault(u =>
             u.GetNameFromDictEntries()?.Equals("iconSprite", StringComparison.OrdinalIgnoreCase) == true
           );
         return UIParser.GetColorPercentFromDictEntries(icon) == AutoPilotRouteColor;
@@ -324,12 +324,12 @@ namespace BotLib
 
     public bool HasInvuln()
     {
-      return _UI.ShipUI?.IsInvulnerable == true;
+      return _UI.ShipUI.Value?.IsInvulnerable == true;
     }
 
     public IEnumerable<OverviewWindow> GetAllOverviewWindows()
     {
-      return _UI.OverviewWindows;
+      return _UI.OverviewWindows.Value;
     }
 
     public bool IsPersonalAssetsWindowOpen()
@@ -341,5 +341,39 @@ namespace BotLib
     {
       return _UI.AssetsWindow?.AssetLocations ?? [];
     }
+
+    public ProbeScannerWindow? GetProbeScannerWindow()
+    {
+      return _UI.ProbeScannerWindow;
+    }
+
+    public string SelectedMarketItemName()
+    {
+      return _UI.RegionalMarketWindow?.SelectedItemName ?? string.Empty;
+    }
+
+    public UIElement? MarketSearchField()
+    {
+      return _UI.RegionalMarketWindow?.SearchField.ToUIElement();
+    }
+
+    public string MarketSearchFieldText()
+    {
+      var searchField = MarketSearchField();
+      if (searchField == null)
+      {
+        return string.Empty;
+      }
+      return UIParser.GetAllContainedDisplayTexts(searchField).Aggregate((a, b) => a + b) ?? string.Empty;
+    }
+
+    public UIElement? FindMarketSearchResult(string itemName)
+    {
+      return _UI.RegionalMarketWindow?
+        .SearchResults?
+        .FirstOrDefault(result => result.Text.Equals(itemName, StringComparison.CurrentCultureIgnoreCase) == true)?
+        .Region.ToUIElement();
+    }
+
   }
 }
