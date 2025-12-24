@@ -17,5 +17,10 @@ namespace BotLib
 
     public static implicit operator PluginResult(bool value)
       => value ? True : False;
+
+    // can cast to bool
+    public static implicit operator bool(PluginResult result)
+      => result.WorkDone;
+
   }
 }

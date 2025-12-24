@@ -106,6 +106,10 @@ namespace Commander
           .Where(p => typeof(IBotLibPlugin).IsAssignableFrom(p) && !p.IsAbstract);
 
       var pluginInstances = plugins.Select(t => Activator.CreateInstance(t, characterName, windowID)).Cast<IBotLibPlugin>() ?? [];
+      pluginInstances.ToList().ForEach(pi =>
+      {
+        pi.SetSettings(PluginSettingsCache.GetSettings(pi));
+      });
 
       return [.. pluginInstances];
     }
@@ -158,6 +162,7 @@ namespace Commander
       //Debug.WriteLine("Starting...");
 
       GameClientCache.LoadCache(Properties.Settings.Default.uiRootAddressCache);
+      PluginSettingsCache.LoadCache(Properties.Settings.Default.pluginSettingsCache);
 
       await Task.WhenAll(EveProcess.ListGameClientProcesses()
           .Where(gc => !string.IsNullOrWhiteSpace(gc.mainWindowTitle))
@@ -383,10 +388,15 @@ namespace Commander
 
             if (!AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == assemblyName.Name))
             {
-              // check without loading the dll that it contains at least one type that implements IBotLibPlugin
+              // check without loading the dll that it contains at least one type that implements one of our interfaces
               var assembly = Assembly.LoadFrom(dll);
               var types = assembly.GetTypes()
-                  .Where(p => typeof(IBotLibPlugin).IsAssignableFrom(p) && !p.IsAbstract);
+                  .Where(p => 
+                    typeof(IBotLibPlugin).IsAssignableFrom(p) 
+                    || typeof(IAutoRunPlugin).IsAssignableFrom(p)
+                    || typeof(IGlobalPlugin).IsAssignableFrom(p)
+                    && !p.IsAbstract
+                  );
 
               // load the dll into the current app domain
               if (types.Any())

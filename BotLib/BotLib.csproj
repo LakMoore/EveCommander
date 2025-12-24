@@ -19,4 +19,8 @@
     <ProjectReference Include="..\..\Sanderling\implement\eve-parse-ui\eve-parse-ui.csproj" />
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="del /s /q &quot;$(ProjectDir)..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\*&quot;&#xA;" />
+  </Target>
+
 </Project>

@@ -3,7 +3,7 @@ using eve_parse_ui;
 using read_memory_64_bit;
 using System.Runtime.Versioning;
 
-namespace CommanderPlugins
+namespace BotLibPlugins
 {
 
   internal class WormholeScout(string characterName, long windowID) : IBotLibPlugin(characterName, windowID)
@@ -13,7 +13,7 @@ namespace CommanderPlugins
     public string? ScoutingBookmarkName { get; set; }
 
     [SupportedOSPlatform("windows5.0")]
-    public override async Task<bool> DoWork(ParsedUserInterface uiRoot, GameClient gameClient, IEnumerable<IBotLibPlugin> allPlugins)
+    public override async Task<PluginResult> DoWork(ParsedUserInterface uiRoot, GameClient gameClient, IEnumerable<IBotLibPlugin> allPlugins)
     {
       // Are we done?
       if (IsCompleted)

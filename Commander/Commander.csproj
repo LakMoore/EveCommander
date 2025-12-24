@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AssemblyLineLib\AssemblyLineLib.csproj" />
-    <ProjectReference Include="..\BotLibPlugins\BotLibPlugins.csproj" />
     <ProjectReference Include="..\BotLib\BotLib.csproj" />
     <ProjectReference Include="..\SDEdotNet\SDEdotNet.csproj" />
   </ItemGroup>
