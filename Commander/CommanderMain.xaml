@@ -14,7 +14,10 @@
           <Button x:Name="Stop" Padding="10, 5" Margin="10" Click="Stop_Click">Ctrl+F8 to Stop</Button>
           <Button Padding="10, 5" Margin="10" Click="CloseAll_Click">Close All Clients</Button>
         </StackPanel>
-        <Button x:Name="SetPlugins" Padding="10, 5" Margin="10" Click="SetPlugins_Click" HorizontalAlignment="Right">Set Plugins</Button>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <Button x:Name="SetPlugins" Padding="10, 5" Margin="10" Click="SetPlugins_Click">Set Plugins</Button>
+          <Button x:Name="Settings" Padding="10, 5" Margin="10" Click="Settings_Click">Settings</Button>
+        </StackPanel>
       </Grid>
       <StackPanel x:Name="ClientPanel"></StackPanel>
     </StackPanel>

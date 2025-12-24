@@ -3,6 +3,7 @@ using read_memory_64_bit;
 using System.Diagnostics;
 using System.IO;
 using System.Xml.Serialization;
+using System.Collections.Generic;
 
 namespace Commander
 {
@@ -55,6 +56,12 @@ namespace Commander
       }
 
       return settings;
+    }
+
+    // Provide access to the underlying cache so UI can enumerate and modify settings
+    internal static Dictionary<string, Dictionary<string, string>> GetCache()
+    {
+      return _cache;
     }
 
   }

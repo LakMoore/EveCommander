@@ -338,6 +338,16 @@ namespace Commander
         .ForEach(ec => ec.UpdatePlugins());
     }
 
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+      var win = new SettingsWindow()
+      {
+        Owner = this,
+        WindowStartupLocation = WindowStartupLocation.CenterOwner
+      };
+      win.ShowDialog();
+    }
+
     private void Stop_Click(object sender, RoutedEventArgs e)
     {
       _isRunning = false;
