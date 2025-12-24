@@ -1,5 +1,6 @@
 ﻿using eve_parse_ui;
 using read_memory_64_bit;
+using System.Reflection;
 
 namespace BotLib
 {
@@ -28,19 +29,24 @@ namespace BotLib
       get => _IsCompleted;
     }
 
-    private Dictionary<string, string>? _settings;
-
-    private List<string> SettingsKeys { get; init; } = [];
-
-    protected void RegisterSettingKey(string key)
-    {
-      SettingsKeys.Add(key);
-      CheckForNewSettings();
-    }
+    private HashSet<PluginSetting>? _settings;
 
     public IReadOnlyList<string> GetSettingKeys()
     {
-      return SettingsKeys.AsReadOnly();
+      Type type = this.GetType();
+      FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
+      List<string> keys = [];
+
+      foreach (FieldInfo field in fields)
+      {
+        var attr = field.GetCustomAttribute<PluginSettingKey>();
+        if (attr != null)
+        {
+          keys.Add(field.Name);
+        }
+      }
+
+      return keys.AsReadOnly();
     }
 
     protected void CheckForNewSettings()
@@ -49,22 +55,23 @@ namespace BotLib
       {
         foreach (var key in GetSettingKeys())
         {
-          if (_settings.TryGetValue(key, out string? value))
+          var value = _settings.FirstOrDefault(s => s.Key == key)?.Value;
+          if (value != null)
           {
-            var property = this.GetType().GetProperty(key);
-            if (property != null)
+            var field = this.GetType().GetField(key);
+            if (field != null)
             {
-              if (property.PropertyType == typeof(string))
+              if (field.FieldType == typeof(string))
               {
-                property.SetValue(this, value);
+                field.SetValue(this, value);
               }
-              else if (property.PropertyType == typeof(int) && int.TryParse(value, out int intValue))
+              else if (field.FieldType == typeof(int) && int.TryParse(value, out int intValue))
               {
-                property.SetValue(this, intValue);
+                field.SetValue(this, intValue);
               }
-              else if (property.PropertyType == typeof(bool) && bool.TryParse(value, out bool boolValue))
+              else if (field.FieldType == typeof(bool) && bool.TryParse(value, out bool boolValue))
               {
-                property.SetValue(this, boolValue);
+                field.SetValue(this, boolValue);
               }
               // Add more type conversions as needed
             }
@@ -73,7 +80,7 @@ namespace BotLib
       }
     }
 
-    public void SetSettings(Dictionary<string, string> settings)
+    public void SetSettings(HashSet<PluginSetting> settings)
     {
       this._settings = settings;
       CheckForNewSettings();

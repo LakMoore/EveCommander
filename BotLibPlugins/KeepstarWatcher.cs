@@ -2,7 +2,6 @@
 using eve_parse_ui;
 using read_memory_64_bit;
 using System.Drawing;
-using System.Reflection.Metadata;
 using System.Runtime.Versioning;
 
 namespace BotLibPlugins
@@ -14,7 +13,7 @@ namespace BotLibPlugins
     public required string Name { get; init; }
   }
 
-  internal class KeepstarWatcher : IBotLibPlugin
+  internal class KeepstarWatcher(string characterName, long windowID) : IBotLibPlugin(characterName, windowID)
   {
     public override string Name => "Keepstar Watcher";
 
@@ -40,11 +39,8 @@ namespace BotLibPlugins
     private long lastMessageTime = 0;
     private const long GRID_CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute; // 1 minutes in ticks
 
+    [PluginSettingKey]
     public string? DiscordWebhookUrl;
-
-    public KeepstarWatcher(string characterName, long windowID) : base(characterName, windowID) { 
-      RegisterSettingKey("DiscordWebhookUrl");      
-    }
 
     [SupportedOSPlatform("windows5.0")]
     public override async Task<PluginResult> DoWork(ParsedUserInterface uiRoot, GameClient gameClient, IEnumerable<IBotLibPlugin> allPlugins)
@@ -71,7 +67,7 @@ namespace BotLibPlugins
           WorkDone = true,
           Message = "Disconnected",
           Background = Color.Red,
-          Foreground = Color.White,
+          Foreground = Color.Black,
         };
       }
       else
@@ -110,34 +106,30 @@ namespace BotLibPlugins
             WorkDone = true,
             Message = "No Overview Found",
             Background = Color.Red,
-            Foreground = Color.White,
+            Foreground = Color.Black,
           };
         }
         else
         {
-          PluginResult result = new()
-          {
-            WorkDone = true,
-            Message = string.Empty,
-            Background = Color.White,
-            Foreground = Color.Black,
-          };
 
-          if (!bot.IsCloaked() && !decloakedWarningSent)
+          if (!bot.IsCloaked())
           {
-            await SendDecloakedWarning(bot.CurrentSystemName());
-            decloakedWarningSent = true;
-            return new PluginResult
+            if (!decloakedWarningSent)
             {
-              WorkDone = true,
-              Message = "Decloaked!!!",
-              Background = Color.Red,
-              Foreground = Color.White,
-            };
+              await SendDecloakedWarning(bot.CurrentSystemName());
+              decloakedWarningSent = true;
+              return new PluginResult
+              {
+                WorkDone = true,
+                Message = "Decloaked!!!",
+                Background = Color.Red,
+                Foreground = Color.Black,
+              };
+            }
           }
           else
           {
-            decloakedWarningSent = true;
+            decloakedWarningSent = false;
           }
 
           var currentGrid = overviews
@@ -181,10 +173,16 @@ namespace BotLibPlugins
           {
             // Lerp the colour from orange to transparent over time
             byte alpha = (byte)(255f - (255f * (double)deltaTime / GRID_CHANGE_NOTIFICATION_DURATION));
-            result.Background = Color.FromArgb(alpha, 255, 128, 0);
+            return new PluginResult
+            {
+              WorkDone = true,
+              Message = string.Empty,
+              Background = Color.FromArgb(alpha, 255, 128, 0),
+              Foreground = Color.White,
+            };
           }
 
-          return result;
+          return true;
         }
 
         // Nothing to do right now

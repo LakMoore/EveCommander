@@ -1,15 +1,19 @@
 ﻿using BotLib;
-using read_memory_64_bit;
-using System.Diagnostics;
 using System.IO;
 using System.Xml.Serialization;
-using System.Collections.Generic;
+using System.Linq;
 
 namespace Commander
 {
+  public class PluginSettings
+  {
+    public string PluginName { get; set; } = string.Empty;
+    public HashSet<PluginSetting> Settings { get; set; } = [];
+  }
+
   internal class PluginSettingsCache
   {
-    private static Dictionary<string, Dictionary<string, string>> _cache = [];
+    private static HashSet<PluginSettings> _cache = [];
 
     internal static void LoadCache(string xmlString)
     {
@@ -17,41 +21,44 @@ namespace Commander
       {
         return;
       }
-      XmlSerializer serializer = new(typeof(Dictionary<string, Dictionary<string, string>>), []);
+      XmlSerializer serializer = new(typeof(HashSet<PluginSettings>), []);
       using var reader = new StringReader(xmlString);
-      if (serializer.Deserialize(reader) is Dictionary<string, Dictionary<string, string>> serializableDictionary)
+      if (serializer.Deserialize(reader) is HashSet<PluginSettings> pluginSettings)
       {
-        _cache = serializableDictionary;
+        _cache = pluginSettings;
       }
     }
 
     internal static string SaveCache()
     {
-      XmlSerializer serializer = new(typeof(Dictionary<string, Dictionary<string, string>>), []);
+      XmlSerializer serializer = new(typeof(HashSet<PluginSettings>), []);
       using var writer = new StringWriter();
       serializer.Serialize(writer, _cache);
       return writer.ToString();
     }
 
     // get a game client from the cache, or make a new one if not found
-    internal static Dictionary<string, string> GetSettings(IBotLibPlugin plugin)
+    internal static HashSet<PluginSetting> GetSettings(IBotLibPlugin plugin)
     {
-      var settings = _cache.GetValueOrDefault(plugin.Name);
+      var settings = _cache.FirstOrDefault(ps => ps.PluginName == plugin.Name)?.Settings;
 
       // if not found, make a new one
       if (settings == null)
       {
         settings = [];
-        _cache.Add(plugin.Name, settings);
+        _cache.Add(new() {
+          PluginName = plugin.Name,
+          Settings = settings
+        });
       }
 
       // add any missing keys
       var settingsKeys = plugin.GetSettingKeys();
       foreach (var key in settingsKeys)
       {
-        if (!settings.ContainsKey(key))
+        if (settings.FirstOrDefault(s => s.Key == key) == null)
         {
-          settings[key] = string.Empty;
+          settings.Add(new() { Key = key, Value = string.Empty } );
         }
       }
 
@@ -59,7 +66,7 @@ namespace Commander
     }
 
     // Provide access to the underlying cache so UI can enumerate and modify settings
-    internal static Dictionary<string, Dictionary<string, string>> GetCache()
+    internal static HashSet<PluginSettings> GetCache()
     {
       return _cache;
     }

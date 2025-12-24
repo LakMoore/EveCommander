@@ -1,7 +1,7 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
-using System.Collections.Generic;
-using System.Linq;
+using BotLib;
 
 namespace Commander
 {
@@ -15,7 +15,7 @@ namespace Commander
       InitializeComponent();
 
       // copy current cache so cancel can revert
-      _originalCache = PluginSettingsCache.GetCache().ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToDictionary(k => k.Key, v => v.Value));
+      _originalCache = PluginSettingsCache.GetCache().ToDictionary(kvp => kvp.PluginName, kvp => kvp.Settings.ToDictionary(k => k.Key, v => v.Value));
 
       LoadUi();
     }
@@ -27,11 +27,11 @@ namespace Commander
 
       foreach (var plugin in cache)
       {
-        var grp = new GroupBox() { Header = plugin.Key, Margin = new Thickness(5) };
+        var grp = new GroupBox() { Header = plugin.PluginName, Margin = new Thickness(5) };
         var panel = new StackPanel();
         var tbDict = new Dictionary<string, TextBox>();
 
-        foreach (var setting in plugin.Value)
+        foreach (var setting in plugin.Settings)
         {
           var sp = new StackPanel() { Orientation = Orientation.Horizontal, Margin = new Thickness(2) };
           sp.Children.Add(new TextBlock() { Text = setting.Key, Width = 200, VerticalAlignment = VerticalAlignment.Center });
@@ -43,7 +43,7 @@ namespace Commander
 
         grp.Content = panel;
         PluginsStack.Children.Add(grp);
-        _textBoxes[plugin.Key] = tbDict;
+        _textBoxes[plugin.PluginName] = tbDict;
       }
     }
 
@@ -53,12 +53,16 @@ namespace Commander
       var cache = PluginSettingsCache.GetCache();
       foreach (var plugin in _textBoxes)
       {
-        if (!cache.ContainsKey(plugin.Key))
-          cache[plugin.Key] = new Dictionary<string, string>();
+        var pluginEntry = cache.FirstOrDefault(p => p.PluginName == plugin.Key) ?? new PluginSettings() { PluginName = plugin.Key, Settings = [] };
 
         foreach (var kv in plugin.Value)
         {
-          cache[plugin.Key][kv.Key] = kv.Value.Text;
+          var setting = pluginEntry.Settings.FirstOrDefault(
+            s => s.Key == kv.Key,
+            new PluginSetting() { Key = kv.Key, Value = string.Empty }
+          );
+          setting.Value = kv.Value.Text;
+          pluginEntry.Settings.Add(setting);
         }
       }
 
@@ -66,6 +70,7 @@ namespace Commander
       Properties.Settings.Default.pluginSettingsCache = PluginSettingsCache.SaveCache();
       Properties.Settings.Default.Save();
 
+      this.DialogResult = true;
       this.Close();
     }
 
@@ -76,9 +81,14 @@ namespace Commander
       cache.Clear();
       foreach (var kv in _originalCache)
       {
-        cache[kv.Key] = kv.Value.ToDictionary(k => k.Key, v => v.Value);
+        cache.Add(new PluginSettings()
+        {
+          PluginName = kv.Key,
+          Settings = [.. kv.Value.Select(pair => new PluginSetting { Key = pair.Key, Value = pair.Value })]
+        });
       }
 
+      this.DialogResult = false;
       this.Close();
     }
   }

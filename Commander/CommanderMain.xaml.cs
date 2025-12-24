@@ -98,6 +98,11 @@ namespace Commander
 
     internal static IReadOnlyList<IBotLibPlugin> GetNewPluginsForCharacter(string characterName, long windowID)
     {
+      if (string.IsNullOrWhiteSpace(characterName))
+      {
+        return [];
+      }
+
       LoadPluginDlls();
 
       // use reflection to find all the classes that inherit from IBotLibPlugin
@@ -106,10 +111,6 @@ namespace Commander
           .Where(p => typeof(IBotLibPlugin).IsAssignableFrom(p) && !p.IsAbstract);
 
       var pluginInstances = plugins.Select(t => Activator.CreateInstance(t, characterName, windowID)).Cast<IBotLibPlugin>() ?? [];
-      pluginInstances.ToList().ForEach(pi =>
-      {
-        pi.SetSettings(PluginSettingsCache.GetSettings(pi));
-      });
 
       return [.. pluginInstances];
     }
@@ -293,6 +294,15 @@ namespace Commander
         return;
 
       _isRunning = true;
+
+      // apply plugin settings to all plugins
+      GetAllPlugins()
+        .ToList()
+        .ForEach(p =>
+        {
+          p.SetSettings(PluginSettingsCache.GetSettings(p));
+        });
+
       while (_isRunning)
       {
         var start = DateTime.UtcNow.Ticks;
@@ -345,7 +355,16 @@ namespace Commander
         Owner = this,
         WindowStartupLocation = WindowStartupLocation.CenterOwner
       };
-      win.ShowDialog();
+      if (win.ShowDialog() == true)
+      {
+        // plugin settings may have changed
+        GetAllPlugins()
+          .ToList()
+          .ForEach(p =>
+          {
+            p.SetSettings(PluginSettingsCache.GetSettings(p));
+          });
+      }
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e)

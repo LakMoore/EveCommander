@@ -16,12 +16,8 @@
       <Label x:Name="Alive" Content="-" Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
       <Label x:Name="Character" Content="Name" Width="150" VerticalAlignment="Center" />
       <StackPanel x:Name="DetailsPanel" Orientation="Horizontal" Visibility="Visible">
-        <Label x:Name="Error" Content="" Foreground="Red" Width="0" VerticalAlignment="Center"/>
         <Label x:Name="SolarSystem" Content="System" VerticalAlignment="Center"/>
-        <Label x:Name="Wormhole" Content="Wormhole" VerticalAlignment="Center"/>
-        <Label x:Name="ShipStatus" Content="" Foreground="Red" Width="0" VerticalAlignment="Center"/>
-        <Label x:Name="Grid" Content="No pilots on grid" VerticalAlignment="Center"/>
-        <Label x:Name="ScanChanges" Content="" Width="0" VerticalAlignment="Center"/>
+        <Label x:Name="Result" Content="" Width="0" VerticalAlignment="Center"/>
         <Label x:Name="PluginDescription" Content="No plugins loaded" VerticalAlignment="Center"/>
       </StackPanel>
       <StackPanel x:Name="MemoryScanPanel" Orientation="Horizontal" Width="0" >

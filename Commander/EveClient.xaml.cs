@@ -55,18 +55,18 @@ namespace Commander
       try
       {
         Background = new SolidColorBrush(Colors.Transparent);
-        Error.Content = "";
-        Error.Width = 0;
-        Error.Foreground = new SolidColorBrush(Colors.Red);
+        Result.Content = "";
+        Result.Width = 0;
+        Result.Foreground = new SolidColorBrush(Colors.Red);
         await CommandClient();
       }
       catch (Exception ex)
       {
         _lastErrorTime = DateTime.UtcNow.Ticks;
         Background = new SolidColorBrush(Colors.Red);
-        Error.Content = ex.Message;
-        Error.Width = Double.NaN;
-        Error.Foreground = new SolidColorBrush(Colors.White);
+        Result.Content = ex.Message;
+        Result.Width = Double.NaN;
+        Result.Foreground = new SolidColorBrush(Colors.White);
         Debug.WriteLine(ex);
 
         try
@@ -232,8 +232,8 @@ namespace Commander
           {
             Dispatcher.Invoke(() =>
             {
-              Error.Content = ex.Message;
-              Error.Width = Double.NaN;
+              Result.Content = ex.Message;
+              Result.Width = Double.NaN;
             });
 
             // try again?
@@ -254,12 +254,6 @@ namespace Commander
           return;
 
         var bot = new EveBot(_uiRoot);
-
-        // reset things
-        Error.Width = 0;
-        Wormhole.Width = 0;
-        Grid.Width = 0;
-        ShipStatus.Width = 0;
 
         SolarSystem.Content =
             $"{bot.CurrentSystemName()} ({string.Format("{0:0.0}", bot.CurrentSystemSecStatus())})";
@@ -297,10 +291,10 @@ namespace Commander
         {
           plugin.CharacterName = CurrentCharacterName;
           var result = await plugin.DoWork(_uiRoot, CommanderClient.GameClient, CommanderMain.IsRunning(), CommanderMain.GetAllPlugins());
-          if (result.Message != null)
+          if (!string.IsNullOrWhiteSpace(result.Message))
           {
-            Error.Content = result.Message;
-            Error.Width = Double.NaN;
+            Result.Content = result.Message;
+            Result.Width = Double.NaN;
           }
           if (result.Background != null)
           {
@@ -310,7 +304,7 @@ namespace Commander
           if (result.Foreground != null)
           {
             var f = (System.Drawing.Color)result.Foreground;
-            Error.Foreground = new SolidColorBrush(Color.FromArgb(f.A, f.R, f.G, f.B));
+            Result.Foreground = new SolidColorBrush(Color.FromArgb(f.A, f.R, f.G, f.B));
           }
           if (result.WorkDone)
           {
@@ -329,10 +323,10 @@ namespace Commander
 
         if (selectedCharacter == null)
         {
+          Result.Content = "Unknown Character";
+          Result.Width = Double.NaN;
           Background = new SolidColorBrush(Colors.Red);
-          Error.Content = "Unknown Character";
-          Error.Width = Double.NaN;
-          Error.Foreground = new SolidColorBrush(Colors.White);
+          Result.Foreground = new SolidColorBrush(Colors.Black);
           return;
         }
 
@@ -344,11 +338,33 @@ namespace Commander
 
         foreach (var plugin in availablePlugins)
         {
-          if (await plugin.DoWork(
+          var result = await plugin.DoWork(
             _uiRoot,
             CommanderClient.GameClient,
             CommanderMain.GetAllPlugins()
-          ))
+          );
+
+          if (!string.IsNullOrWhiteSpace(result.Message))
+          {
+            Result.Content = result.Message;
+            Result.Width = Double.NaN;
+          }
+
+          if (result.Background != null)
+          {
+            var b = (System.Drawing.Color)result.Background;
+            Background = new SolidColorBrush(Color.FromArgb(b.A, b.R, b.G, b.B));
+          }
+
+          if (result.Foreground != null)
+          {
+            var b = (System.Drawing.Color)result.Foreground;
+            var br = new SolidColorBrush(Color.FromArgb(b.A, b.R, b.G, b.B));
+            Result.Foreground = br;
+            Foreground = br;
+          }
+
+          if (result.WorkDone == true)
           {
             return;
           }
