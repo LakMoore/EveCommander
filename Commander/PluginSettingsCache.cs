@@ -53,12 +53,12 @@ namespace Commander
       }
 
       // add any missing keys
-      var settingsKeys = plugin.GetSettingKeys();
-      foreach (var key in settingsKeys)
+      var settingsInfo = plugin.GetSettingsInfo();
+      foreach (var info in settingsInfo)
       {
-        if (settings.FirstOrDefault(s => s.Key == key) == null)
+        if (settings.FirstOrDefault(s => s.Key == info.Key) == null)
         {
-          settings.Add(new() { Key = key, Value = string.Empty } );
+          settings.Add(new() { Key = info.Key, Value = string.Empty } );
         }
       }
 

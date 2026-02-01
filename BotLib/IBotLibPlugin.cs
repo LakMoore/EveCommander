@@ -31,18 +31,25 @@ namespace BotLib
 
     private HashSet<PluginSetting>? _settings;
 
-    public IReadOnlyList<string> GetSettingKeys()
+    public record PluginSettingInfo
+    {
+      public required string Key;
+      public required string Description;
+      public required BotLibSetting.Type SettingType;
+    }
+
+    public IReadOnlyList<PluginSettingInfo> GetSettingsInfo()
     {
       Type type = this.GetType();
       FieldInfo[] fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
-      List<string> keys = [];
+      List<PluginSettingInfo> keys = [];
 
       foreach (FieldInfo field in fields)
       {
-        var attr = field.GetCustomAttribute<PluginSettingKey>();
+        var attr = field.GetCustomAttribute<BotLibSetting>();
         if (attr != null)
         {
-          keys.Add(field.Name);
+          keys.Add(new() { Key = field.Name, Description = attr.Description ?? "", SettingType = attr.SettingType });
         }
       }
 
@@ -53,12 +60,12 @@ namespace BotLib
     {
       if (_settings != null)
       {
-        foreach (var key in GetSettingKeys())
+        foreach (var info in GetSettingsInfo())
         {
-          var value = _settings.FirstOrDefault(s => s.Key == key)?.Value;
+          var value = _settings.FirstOrDefault(s => s.Key == info.Key)?.Value;
           if (value != null)
           {
-            var field = this.GetType().GetField(key);
+            var field = this.GetType().GetField(info.Key);
             if (field != null)
             {
               if (field.FieldType == typeof(string))

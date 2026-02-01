@@ -54,10 +54,6 @@ namespace Commander
 
       try
       {
-        Background = new SolidColorBrush(Colors.Transparent);
-        Result.Content = "";
-        Result.Width = 0;
-        Result.Foreground = new SolidColorBrush(Colors.Red);
         await CommandClient();
       }
       catch (Exception ex)

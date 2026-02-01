@@ -131,9 +131,14 @@ namespace BotLib
       return _UI.PlanetaryImportExportUI?.CustomsList;
     }
 
-    public bool IsWaitingForQtyInput()
+    public bool IsWaitingForNumericInput()
     {
-      return _UI.QuantityModal != null;
+      return _UI.InputModal.Value != null && _UI.InputModal.Value.InputType == InputModal.Type.Numeric;
+    }
+
+    public bool IsWaitingForTextInput()
+    {
+      return _UI.InputModal.Value != null && _UI.InputModal.Value.InputType == InputModal.Type.Text;
     }
 
     public UIElement? PITransferButton()
@@ -349,12 +354,12 @@ namespace BotLib
 
     public string SelectedMarketItemName()
     {
-      return _UI.RegionalMarketWindow?.SelectedItemName ?? string.Empty;
+      return _UI.RegionalMarketWindow.Value?.SelectedItemName ?? string.Empty;
     }
 
     public UIElement? MarketSearchField()
     {
-      return _UI.RegionalMarketWindow?.SearchField.ToUIElement();
+      return _UI.RegionalMarketWindow.Value?.SearchField.ToUIElement();
     }
 
     public string MarketSearchFieldText()
@@ -369,11 +374,67 @@ namespace BotLib
 
     public UIElement? FindMarketSearchResult(string itemName)
     {
-      return _UI.RegionalMarketWindow?
+      return _UI.RegionalMarketWindow.Value?
         .SearchResults?
         .FirstOrDefault(result => result.Text.Equals(itemName, StringComparison.CurrentCultureIgnoreCase) == true)?
-        .Region.ToUIElement();
+        .Region?.ToUIElement() ?? null;
     }
 
+    public string BuyMarketActionWindowType()
+    {
+      return _UI.BuyMarketActionWindow.Value?.TypeName ?? string.Empty;
+    }
+
+    public string ModifyMarketActionWindowType()
+    {
+      return _UI.ModifyMarketActionWindow.Value?.TypeName ?? string.Empty;
+    }
+
+    public string BuyMarketActionLocationName()
+    {
+      return _UI.BuyMarketActionWindow.Value?.LocationLink != null ?
+          UIParser.GetAllContainedDisplayTexts(_UI.BuyMarketActionWindow.Value.LocationLink).Aggregate((a, b) => a + b) ?? string.Empty
+          : string.Empty;
+    }
+
+    public string ModalTitle()
+    {
+      return _UI.InputModal.Value?.Title ?? string.Empty;
+    }
+
+    public IEnumerable<MarketOrder>? MarketBuyOrders()
+    {
+      return _UI.RegionalMarketWindow.Value?.Buyers;
+    }
+
+    public IEnumerable<MarketOrder>? MarketSellOrders()
+    {
+      return _UI.RegionalMarketWindow.Value?.Sellers;
+    }
+
+    public bool IsMarkeOrdersOpen()
+    {
+      return _UI.MarketOrdersWindow.Value != null;
+    }
+
+    public UIElement? ModifyMarketActionWindow()
+    {
+      return _UI.ModifyMarketActionWindow.Value?.UiNode.ToUIElement();
+    }
+
+    public IEnumerable<MessageBox> MessageBoxes()
+    {
+      return _UI.MessageBoxes;
+    }
+
+    public MarketOrdersWindow.Tab? MarketOrdersTab()
+    {
+      return _UI.MarketOrdersWindow.Value?.CurrentTab;
+    }
+
+    public object GetLocalCharacters()
+    {
+        throw new NotImplementedException();
+    }
   }
 }

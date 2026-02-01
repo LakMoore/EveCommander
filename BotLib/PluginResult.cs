@@ -22,5 +22,9 @@ namespace BotLib
     public static implicit operator bool(PluginResult result)
       => result.WorkDone;
 
+    public static PluginResult Failure(string message)
+    {
+      return new() { WorkDone = false, Message = message, Background = Color.Red, Foreground = Color.White };
+    }
   }
 }

@@ -12,6 +12,5 @@ namespace BotLib
     public UIElement(UITreeNodeWithDisplayRegion original) : base(original)
     {
     }
-
   }
 }
