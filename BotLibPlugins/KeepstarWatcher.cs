@@ -1,6 +1,7 @@
 ﻿using BotLib;
 using eve_parse_ui;
 using read_memory_64_bit;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.Versioning;
 
@@ -27,7 +28,8 @@ namespace BotLibPlugins
       "Obelisk",
       "Fenrir",
       "Avalanche",
-      "Mobile Observatory"
+      "Mobile Observatory",
+      "Buzzard",
     ];
 
     private readonly List<OverviewEntry> previousGrid = [];
@@ -39,7 +41,7 @@ namespace BotLibPlugins
     private long lastMessageTime = 0;
     private const long GRID_CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute; // 1 minutes in ticks
 
-    [PluginSettingKey]
+    [BotLibSetting(SettingType = BotLibSetting.Type.SingleLineText, Description = "Get a webhook URL from Discord for the channel where you want alerts to appear.")]
     public string? DiscordWebhookUrl;
 
     [SupportedOSPlatform("windows5.0")]
@@ -86,12 +88,6 @@ namespace BotLibPlugins
           return true;
         }
 
-        // if we are not tethered then ensure we are cloaked
-        if (!bot.IsCloaked() && !bot.IsTethered())
-        {
-          var cloak = bot.GetCloakModule();
-        }
-
         if (bot.IsInWarp())
         {
           return true;
@@ -111,7 +107,6 @@ namespace BotLibPlugins
         }
         else
         {
-
           if (!bot.IsCloaked())
           {
             if (!decloakedWarningSent)
@@ -129,6 +124,16 @@ namespace BotLibPlugins
           }
           else
           {
+            if (decloakedWarningSent)
+            {
+              return new PluginResult
+              {
+                WorkDone = true,
+                Message = "Grid clear",
+                Background = Color.Transparent,
+                Foreground = Color.Black,
+              };
+            }
             decloakedWarningSent = false;
           }
 
@@ -141,18 +146,18 @@ namespace BotLibPlugins
             })
             .ToList();
 
-          if (!gridInitialized)
-          {
-            currentGrid.ForEach(entry => previousGrid.Add(entry));
-            gridInitialized = true;
-          } 
-          else
+          if (gridInitialized)
           {
             // compare current grid to previous grid
             var newShipsOfInterest = currentGrid
               .Where(cg => !previousGrid.Any(pg => pg.Type == cg.Type && pg.Name == cg.Name))
               .Where(cg => ShipTypesToWatch.Any(stw => cg.Type.Contains(stw)))
               .ToList();
+
+            // reset previous grid
+            previousGrid.Clear();
+            currentGrid.ForEach(entry => previousGrid.Add(entry));
+            gridInitialized = true;
 
             if (newShipsOfInterest.Count != 0)
             {
@@ -167,6 +172,11 @@ namespace BotLibPlugins
               };
             }
           }
+
+          // reset previous grid
+          previousGrid.Clear();
+          currentGrid.ForEach(entry => previousGrid.Add(entry));
+          gridInitialized = true;
 
           long deltaTime = DateTime.Now.Ticks - lastMessageTime;
           if (deltaTime < GRID_CHANGE_NOTIFICATION_DURATION)
@@ -193,7 +203,7 @@ namespace BotLibPlugins
     private async Task SendNewShips(List<OverviewEntry> newShipsOfInterest, string systemName)
     {
       var shipList = string.Join("\n, ", newShipsOfInterest.Select(s => $"{s.Type} [{s.Name}]"));
-      var message = $"{this.CharacterName} has seen the following ships in {systemName}:\n{shipList}";
+      var message = $"{this.CharacterName} has seen the following ships in {systemName}:\\n{shipList}";
 
       await SendDiscordMessage(message);
     }
@@ -221,13 +231,13 @@ namespace BotLibPlugins
         var response = await SharedHttpClient.PostAsync(DiscordWebhookUrl, content);
         if (response != null)
         {
-          Console.WriteLine($"Sent '{message}' for {this.CharacterName}");
-          Console.WriteLine(await response.Content.ReadAsStringAsync());
+          Debug.WriteLine($"Sent '{message}' for {this.CharacterName}");
+          Debug.WriteLine(await response.Content.ReadAsStringAsync());
         }
       }
       catch (Exception ex)
       {
-        Console.WriteLine($"Error sending Discord message: {ex.Message}");
+        Debug.WriteLine($"Error sending Discord message: {ex.Message}");
       }
     }
   }
