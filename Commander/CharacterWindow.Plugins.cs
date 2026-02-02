@@ -26,6 +26,13 @@ namespace Commander
                 .OrderBy(n => n)
                 .ToList();
 
+            // If there are no plugin names available, give a more specific message
+            if (!allPluginNames.Any())
+            {
+                MessageBox.Show(this, "No active game clients found or no plugins currently loaded.", "Apply Plugins", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             // Determine initial selection: pre-select a plugin if it is enabled on all selected characters
             var initiallySelected = allPluginNames
                 .Where(name => selectedCharacters.All(c => c.Plugins.Any(p => p.Name == name && p.IsEnabled)))

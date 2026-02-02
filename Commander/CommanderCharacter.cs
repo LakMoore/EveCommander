@@ -48,7 +48,15 @@ namespace Commander
       {
         if (IsSelected)
         {
-          return Brushes.LightBlue;
+          // Use dark-mode selection color if available via resources; fall back to a muted blue
+          try
+          {
+            var brush = (System.Windows.Application.Current.Resources["SelectionBrush"] as SolidColorBrush);
+            if (brush != null)
+              return brush;
+          }
+          catch { }
+          return new SolidColorBrush((System.Windows.Media.Color)ColorConverter.ConvertFromString("#FF264F66"));
         }
         return Brushes.Transparent;
       }

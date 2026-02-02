@@ -5,7 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Commander"
         mc:Ignorable="d"
-        Title="PluginSelector" Height="230" Width="300">
+        Title="PluginSelector" Height="230" Width="300"
+        Background="{DynamicResource BackgroundBrush}" Foreground="{DynamicResource ForegroundBrush}">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -13,21 +14,29 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
     <TextBlock Text="Select plugins to enable:" Margin="10,10,10,10" Grid.Row="0" />
-    <ListBox x:Name="PluginList" SelectionMode="Multiple" ScrollViewer.VerticalScrollBarVisibility="Auto" Grid.Row="1" >
+    <ListBox x:Name="PluginList" ItemsSource="{Binding Items}" SelectionMode="Multiple" ScrollViewer.VerticalScrollBarVisibility="Auto" Grid.Row="1">
+      <ListBox.ItemContainerStyle>
+        <Style TargetType="ListBoxItem">
+          <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+          <Setter Property="Background" Value="Transparent" />
+          <EventSetter Event="PreviewMouseLeftButtonDown" Handler="ListBoxItem_PreviewMouseLeftButtonDown" />
+        </Style>
+      </ListBox.ItemContainerStyle>
       <ListBox.ItemTemplate>
         <DataTemplate>
-          <DockPanel>
+          <!-- row content: checkbox + label; clicks automatically toggle IsSelected on the container -->
+          <DockPanel Background="Transparent" Cursor="Hand">
             <CheckBox
                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
                 DockPanel.Dock="Left"/>
-            <TextBlock Text="{Binding Name}" Margin="6,0,0,0" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding Name}" Margin="6,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
           </DockPanel>
         </DataTemplate>
       </ListBox.ItemTemplate>
     </ListBox>
     <StackPanel Orientation="Horizontal" Grid.Row="2" HorizontalAlignment="Right" Margin="10">
-      <Button Margin="0,0,10,0" Padding="5" Click="Button_Click">OK</Button>
-      <Button Padding="5" Click="Cancel_Click">Cancel</Button>
+      <Button Margin="0,0,10,0" Padding="5" Click="Button_Click" Style="{DynamicResource {x:Type Button}}">OK</Button>
+      <Button Padding="5" Click="Cancel_Click" Style="{DynamicResource {x:Type Button}}">Cancel</Button>
     </StackPanel>
   </Grid>
 </Window>

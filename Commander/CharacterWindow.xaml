@@ -5,7 +5,9 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Commander"
         mc:Ignorable="d"
-        Title="CharacterWindow" Height="450" Width="733">
+        Title="CharacterWindow" Height="450" Width="800"
+        Background="{DynamicResource BackgroundBrush}"
+        Foreground="{DynamicResource ForegroundBrush}">
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -13,7 +15,7 @@
       <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
     <!-- Sorting and filtering controls -->
-    <StackPanel Orientation="Horizontal" Margin="8" Grid.Row="0" VerticalAlignment="Center">
+    <StackPanel Orientation="Horizontal" Margin="8" Grid.Row="0" VerticalAlignment="Center" Background="{StaticResource BackgroundBrush}">
       <TextBlock Margin="4,4" VerticalAlignment="Center">Sort:</TextBlock>
       <Button Margin="4,4" Padding="4" Click="SortByIsOnline_Click">IsOnline</Button>
       <Button Margin="4,4" Padding="4" Click="SortByLocation_Click">Location</Button>
@@ -21,21 +23,25 @@
       <Button Margin="4,4" Padding="4" Click="SortByPlugins_Click">Plugins</Button>
 
       <TextBlock Margin="16,4,4,4" VerticalAlignment="Center">Filter IsOnline:</TextBlock>
-      <ComboBox x:Name="IsOnlineFilterCombo" Width="100" Margin="4" SelectionChanged="IsOnlineFilter_SelectionChanged">
+      <ComboBox x:Name="IsOnlineFilterCombo" Width="100" Margin="4" SelectionChanged="IsOnlineFilter_SelectionChanged"
+                Style="{DynamicResource {x:Type ComboBox}}"
+                ItemContainerStyle="{DynamicResource {x:Type ComboBoxItem}}">
         <ComboBoxItem Content="All" IsSelected="True" />
         <ComboBoxItem Content="Online" />
         <ComboBoxItem Content="Offline" />
       </ComboBox>
 
       <TextBlock Margin="16,4,4,4" VerticalAlignment="Center">Filter Location:</TextBlock>
-      <ComboBox x:Name="LocationFilterCombo" Width="160" Margin="4" SelectionChanged="LocationFilter_SelectionChanged" />
+      <ComboBox x:Name="LocationFilterCombo" Width="160" Margin="4" SelectionChanged="LocationFilter_SelectionChanged"
+                Style="{DynamicResource {x:Type ComboBox}}"
+                ItemContainerStyle="{DynamicResource {x:Type ComboBoxItem}}" />
     </StackPanel>
 
     <ScrollViewer 
       Grid.Row="1"
       VerticalScrollBarVisibility="Auto" 
-      HorizontalScrollBarVisibility="Disabled" 
-    >
+      HorizontalScrollBarVisibility="Disabled"
+      Background="{DynamicResource SurfaceBrush}">
       <ItemsControl 
         ItemsSource="{Binding CharactersView}"
         x:Name="characterList"
@@ -49,7 +55,7 @@
       </ItemsControl>
     </ScrollViewer>
 
-    <Grid Grid.Row="2" Margin="10">
+    <Grid Grid.Row="2" Margin="10" Background="{StaticResource BackgroundBrush}">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="Auto" />

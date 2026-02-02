@@ -5,9 +5,10 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Commander"
         mc:Ignorable="d"
-        Title="VisualiseUI" Height="450" Width="800">
+        Title="VisualiseUI" Height="450" Width="800"
+        Background="{StaticResource BackgroundBrush}" Foreground="{StaticResource ForegroundBrush}">
   <Grid>
-    <Grid x:Name="EveRoot" />
-    <TextBlock x:Name="Path" Text="VisualiseUI" HorizontalAlignment="Left" Width="200" Margin="15" TextWrapping="Wrap"/>
+    <Grid x:Name="EveRoot" Background="{StaticResource SurfaceBrush}" />
+    <TextBlock x:Name="Path" Text="VisualiseUI" HorizontalAlignment="Left" Width="200" Margin="15" TextWrapping="Wrap" Foreground="{StaticResource SecondaryForegroundBrush}"/>
   </Grid>
 </Window>

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Commander
 {
@@ -12,10 +14,14 @@ namespace Commander
   public partial class PluginSelector : Window
   {
     private ObservableCollection<PluginSelectionModel> _items = new();
+    // expose for XAML binding
+    public ObservableCollection<PluginSelectionModel> Items => _items;
 
     public PluginSelector()
     {
       InitializeComponent();
+      DataContext = this;
+      // ensure the ListBox is explicitly bound to our collection (failsafe for different loading orders)
       PluginList.ItemsSource = _items;
     }
 
@@ -56,6 +62,53 @@ namespace Commander
     {
       DialogResult = false;
       Close();
+    }
+
+    // Centralized click handling on the ListBoxItem container to avoid event interference.
+    // Ignore clicks that originate from the CheckBox itself so the checkbox's own behavior remains primary.
+    private void ListBoxItem_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+      // If the click came from inside a CheckBox, don't handle here (let the CheckBox toggle normally)
+      DependencyObject? src = e.OriginalSource as DependencyObject;
+      while (src != null)
+      {
+        if (src is System.Windows.Controls.Primitives.ButtonBase || src is System.Windows.Controls.CheckBox)
+        {
+          return; // let the checkbox or button handle the click
+        }
+        src = VisualTreeHelper.GetParent(src);
+      }
+
+      if (sender is System.Windows.Controls.ListBoxItem item && item.DataContext is PluginSelectionModel model)
+      {
+        // toggle selection model when clicking anywhere on the item (except checkbox)
+        model.IsSelected = !model.IsSelected;
+        e.Handled = true; // prevent other handlers from also toggling
+      }
+    }
+
+    // Failsafe central handler: handle clicks on the ListBox that may not go through the ListBoxItem event
+    private void PluginList_PreviewMouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+      // Only handle if clicked on a ListBoxItem area
+      var src = e.OriginalSource as DependencyObject;
+      while (src != null && !(src is System.Windows.Controls.ListBoxItem))
+      {
+        src = VisualTreeHelper.GetParent(src);
+      }
+      if (src is System.Windows.Controls.ListBoxItem item && item.DataContext is PluginSelectionModel model)
+      {
+        // ignore clicks originating from the CheckBox itself
+        var origin = e.OriginalSource as DependencyObject;
+        while (origin != null)
+        {
+          if (origin is System.Windows.Controls.CheckBox) return;
+          origin = VisualTreeHelper.GetParent(origin);
+        }
+
+        model.IsSelected = !model.IsSelected;
+        e.Handled = true;
+      }
     }
   }
 }

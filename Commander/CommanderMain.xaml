@@ -6,9 +6,9 @@
         xmlns:local="clr-namespace:Commander"
         mc:Ignorable="d"
         Title="Commander" Height="450" Width="800">
-  <Grid>
-    <StackPanel>
-      <Grid>
+  <Grid Background="{StaticResource BackgroundBrush}">
+    <StackPanel Background="{StaticResource BackgroundBrush}">
+      <Grid Background="{StaticResource BackgroundBrush}">
         <StackPanel Orientation="Horizontal"  HorizontalAlignment="Left">
           <Button x:Name="Start" Padding="10, 5" Margin="10" Click="Start_Click">Start</Button>
           <Button x:Name="Stop" Padding="10, 5" Margin="10" Click="Stop_Click">Ctrl+F8 to Stop</Button>
@@ -19,7 +19,7 @@
           <Button x:Name="Settings" Padding="10, 5" Margin="10" Click="Settings_Click">Settings</Button>
         </StackPanel>
       </Grid>
-      <StackPanel x:Name="ClientPanel"></StackPanel>
+      <StackPanel x:Name="ClientPanel" Background="{StaticResource SurfaceBrush}"></StackPanel>
     </StackPanel>
   </Grid>
 </Window>
