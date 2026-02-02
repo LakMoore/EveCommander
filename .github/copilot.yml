@@ -1,0 +1,20 @@
+# GitHub Copilot repository configuration
+# Minimal settings to enable suggestions for this repository and prioritize common file types
+version: 1
+suggestions:
+  enabled: true
+  languages:
+    - C#
+    - PowerShell
+    - XML
+    - JSON
+  fileTypes:
+    - cs
+    - xaml
+    - csproj
+    - yml
+  allow:
+    - path: "Commander/**"
+    - path: "BotLib/**"
+    - path: "Sanderling/**"
+    - path: "**/*.cs"
