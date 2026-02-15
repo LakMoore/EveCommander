@@ -12,10 +12,10 @@ namespace BotLib
     private readonly string DISCONNECT_STRING = "Connection lost";
 
     public bool IsDisconnected() =>
-        _UI.MessageBoxes.Select(m => m.TextHeadline).Any(m => m?.Equals(DISCONNECT_STRING, StringComparison.CurrentCultureIgnoreCase) == true);
+        _UI.MessageBoxes.Value.Select(m => m.TextHeadline).Any(m => m?.Equals(DISCONNECT_STRING, StringComparison.CurrentCultureIgnoreCase) == true);
 
     public bool IsDocked() =>
-        _UI.StationWindow != null;
+        _UI.StationWindow.Value != null;
 
     public string CurrentSystemName() =>
         _UI.InfoPanelContainer.Value?.InfoPanelLocationInfo?.CurrentSolarSystemName ?? "Unknown System";
@@ -53,7 +53,7 @@ namespace BotLib
 
     public bool IsInSessionChange()
     {
-      return _UI.SessionTimeIndicator != null;
+      return _UI.SessionTimeIndicator.Value != null;
     }
 
     public bool IsInWarp()
@@ -83,24 +83,24 @@ namespace BotLib
 
     public bool IsPlanetsWindowOpen()
     {
-      return _UI.PlanetsWindow != null;
+      return _UI.PlanetsWindow.Value != null;
     }
 
     public Colony? GetSelectedColony()
     {
-      return _UI.PlanetsWindow?.Colonies.FirstOrDefault(c => c.IsSelected);
+      return _UI.PlanetsWindow.Value?.Colonies.FirstOrDefault(c => c.IsSelected);
     }
 
     public Colony? GetNextColony()
     {
-      if (_UI.PlanetsWindow?.Colonies?.Count == 0)
+      if (_UI.PlanetsWindow.Value?.Colonies?.Count == 0)
         return null;
 
       var currentColony = GetSelectedColony();
       if (currentColony == null)
-        return _UI.PlanetsWindow?.Colonies?[0];
+        return _UI.PlanetsWindow.Value?.Colonies?[0];
 
-      return _UI.PlanetsWindow?.Colonies?
+      return _UI.PlanetsWindow.Value?.Colonies?
           .SkipWhile(c => c != currentColony)
           .Skip(1)
           .FirstOrDefault();
@@ -108,27 +108,27 @@ namespace BotLib
 
     public bool IsPIExportWindowOpen()
     {
-      return _UI.PlanetaryImportExportUI != null;
+      return _UI.PlanetaryImportExportUI.Value != null;
     }
 
     public PlanetaryImportExportUI? PIExportWindow()
     {
-      return _UI.PlanetaryImportExportUI;
+      return _UI.PlanetaryImportExportUI.Value;
     }
 
     public bool IsUndocking()
     {
-      return _UI.StationWindow?.AbortUndockButton != null;
+      return _UI.StationWindow.Value?.AbortUndockButton != null;
     }
 
     public CustomsOfficeList? GetSpaceportList()
     {
-      return _UI.PlanetaryImportExportUI?.SpaceportList;
+      return _UI.PlanetaryImportExportUI.Value?.SpaceportList;
     }
 
     public CustomsOfficeList? GetCustomsList()
     {
-      return _UI.PlanetaryImportExportUI?.CustomsList;
+      return _UI.PlanetaryImportExportUI.Value?.CustomsList;
     }
 
     public bool IsWaitingForNumericInput()
@@ -143,18 +143,18 @@ namespace BotLib
 
     public UIElement? PITransferButton()
     {
-      return _UI.PlanetaryImportExportUI?.TransferButton.ToUIElement();
+      return _UI.PlanetaryImportExportUI.Value?.TransferButton.ToUIElement();
     }
 
     public bool IsPrimaryInventoryVisible()
     {
-      var mainInventory = _UI.InventoryWindows.FirstOrDefault();
+      var mainInventory = _UI.InventoryWindows.Value.FirstOrDefault();
       return mainInventory != null && mainInventory.WindowCaption == "Inventory";
     }
 
     public InventoryWindowLeftTreeEntry? GetPIHoldInventoryEntry()
     {
-      return _UI.InventoryWindows
+      return _UI.InventoryWindows.Value
           .SelectMany(i => i
               .LeftTreePanel
               .Entries
@@ -166,7 +166,7 @@ namespace BotLib
 
     public InventoryWindowLeftTreeEntry? GetFleetHangarEntry()
     {
-      return _UI.InventoryWindows
+      return _UI.InventoryWindows.Value
           .SelectMany(i => i
               .LeftTreePanel
               .Entries
@@ -178,7 +178,7 @@ namespace BotLib
 
     public IEnumerable<InventoryWindow> InventoryWindows()
     {
-      return _UI.InventoryWindows;
+      return _UI.InventoryWindows.Value;
     }
 
     public UIElement? AutopilotNextWaypoint()
@@ -191,24 +191,24 @@ namespace BotLib
 
     public IEnumerable<ContextMenuEntry> ContextMenuEntries()
     {
-      return _UI.ContextMenus
+      return _UI.ContextMenus.Value
           .SelectMany(menu => menu.Entries)
           .Where(entry => entry != null);
     }
 
     public IEnumerable<ListWindow> ListWindows()
     {
-      return _UI.ListWindows;
+      return _UI.ListWindows.Value;
     }
 
     public ExpandedUtilMenu? UtilMenu()
     {
-      return _UI.ExpandedUtilMenu;
+      return _UI.ExpandedUtilMenu.Value;
     }
 
     public bool IsOutsideView()
     {
-      var button = _UI.StationWindow?.DockedModeButton;
+      var button = _UI.StationWindow.Value?.DockedModeButton;
       if (button == null)
         return false;
 
@@ -220,22 +220,22 @@ namespace BotLib
 
     public bool CharacterSelectionScreenVisible()
     {
-      return _UI.CharacterSelectionScreen != null;
+      return _UI.CharacterSelectionScreen.Value != null;
     }
 
     public IEnumerable<CharacterSlot> CharacterSelectionSlots()
     {
-      return _UI.CharacterSelectionScreen?.CharacterSlots ?? [];
+      return _UI.CharacterSelectionScreen.Value?.CharacterSlots ?? [];
     }
 
     public bool DoesCharacterSelectionScreenShowAlphaStatus()
     {
-      return _UI.CharacterSelectionScreen?.AccountIsAlpha == true;
+      return _UI.CharacterSelectionScreen.Value?.AccountIsAlpha == true;
     }
 
     public UIElement? LogoutButton()
     {
-      return _UI.Neocom?.PanelCommands?.FirstOrDefault(cmd =>
+      return _UI.Neocom.Value?.PanelCommands?.FirstOrDefault(cmd =>
           cmd.Text.Equals("Log off", StringComparison.CurrentCultureIgnoreCase) == true
       )?
       .UiNode
@@ -244,17 +244,17 @@ namespace BotLib
 
     public UIElement? EveMenuButton()
     {
-      return _UI.Neocom?.EveMenuButton.ToUIElement();
+      return _UI.Neocom.Value?.EveMenuButton.ToUIElement();
     }
 
     public IReadOnlyList<Colony> GetAllColonies()
     {
-      return _UI.PlanetsWindow?.Colonies ?? [];
+      return _UI.PlanetsWindow.Value?.Colonies ?? [];
     }
 
     public IReadOnlyList<UIElement> GetStandaloneBookmarks()
     {
-      return _UI.StandaloneBookmarkWindow?.Entries
+      return _UI.StandaloneBookmarkWindow.Value?.Entries
           .Select(e => e.ToUIElement())
           .Where(e => e != null)
           .Cast<UIElement>()
@@ -311,7 +311,7 @@ namespace BotLib
 
     public IEnumerable<InfoWindow> GetInfoWindows()
     {
-      return _UI.InfoWindows;
+      return _UI.InfoWindows.Value;
     }
 
     public bool OnAutoPilotRoute(OverviewWindowEntry e)
@@ -339,17 +339,17 @@ namespace BotLib
 
     public bool IsPersonalAssetsWindowOpen()
     {
-      return _UI.AssetsWindow != null;
+      return _UI.AssetsWindow.Value != null;
     }
 
     public IEnumerable<AssetLocation> PersonalAssetLocations()
     {
-      return _UI.AssetsWindow?.AssetLocations ?? [];
+      return _UI.AssetsWindow.Value?.AssetLocations ?? [];
     }
 
     public ProbeScannerWindow? GetProbeScannerWindow()
     {
-      return _UI.ProbeScannerWindow;
+      return _UI.ProbeScannerWindow.Value;
     }
 
     public string SelectedMarketItemName()
@@ -424,7 +424,7 @@ namespace BotLib
 
     public IEnumerable<MessageBox> MessageBoxes()
     {
-      return _UI.MessageBoxes;
+      return _UI.MessageBoxes.Value;
     }
 
     public MarketOrdersWindow.Tab? MarketOrdersTab()
