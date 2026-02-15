@@ -7,8 +7,28 @@
     <BaseOutputPath></BaseOutputPath>
   </PropertyGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy &quot;$(TargetDir)*.dll&quot; &quot;$(SolutionDir)Commander\bin\$(Configuration)\net9.0-windows\Plugins\&quot; /Y /R /I&#xA;xcopy &quot;$(TargetDir)*.pdb&quot; &quot;$(SolutionDir)Commander\bin\$(Configuration)\net9.0-windows\Plugins\&quot; /Y /R /I&#xA;" />
+  <PropertyGroup>
+    <!-- Use relative path from project directory, not solution directory -->
+    <CommanderPluginsDir>$(MSBuildProjectDirectory)\..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\</CommanderPluginsDir>
+  </PropertyGroup>
+
+  <Target Name="CopyPluginsToCommander" AfterTargets="Build">
+    <ItemGroup>
+      <!-- Only copy the plugin DLL/PDB -->
+      <PluginFiles Include="$(TargetDir)$(TargetFileName)" />
+      <PluginFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+      <!-- Exclude shared dependencies that Commander already has -->
+      <!-- BotLib, eve-parse-ui, read-memory-64-bit, Newtonsoft.Json are all in Commander -->
+    </ItemGroup>
+
+    <MakeDir Directories="$(CommanderPluginsDir)" />
+
+    <Copy SourceFiles="@(PluginFiles)" 
+          DestinationFolder="$(CommanderPluginsDir)" 
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <Message Text="Copied BotLibPlugins to $(CommanderPluginsDir)" Importance="high" />
   </Target>
 
   <ItemGroup>
