@@ -12,8 +12,6 @@ namespace BotLibPlugins
   {
     public override string Name => "Grid Scout";
 
-    public string? ScoutingBookmarkName { get; set; }
-
     private int lastPilotCount = -1;
     private long lastPilotCountChangeTime = 0;
     private const long GRID_CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute; // 1 minutes in ticks
@@ -55,71 +53,8 @@ namespace BotLibPlugins
         return true;
       }
 
-      var wormholeBookmarks = bot.GetStandaloneBookmarks()
-          .SelectMany(UIParser.GetAllContainedDisplayTextsWithRegion)
-          .Where(b => b.Text.StartsWith('#'))
-          .ToList();
-
-      if (!string.IsNullOrWhiteSpace(ScoutingBookmarkName) && !wormholeBookmarks.Any(b => b.Text.Contains(ScoutingBookmarkName)))
-      {
-        // Our Bookmark is missing!
-        ScoutingBookmarkName = string.Empty;
-      }
-
-      if (string.IsNullOrWhiteSpace(ScoutingBookmarkName))
-      {
-
-        // if we're scouting a wormhole
-        if (!string.IsNullOrWhiteSpace(ScoutingBookmarkName))
-        {
-          var ourBookmark = wormholeBookmarks
-              .FirstOrDefault(b => b.Text.Contains(ScoutingBookmarkName));
-
-          if (ourBookmark == null)
-          {
-            // we are scouting a dead wormhole!
-            ScoutingBookmarkName = null;
-            // start again
-            return true;
-          }
-
-          var wormhole = bot.GetOverviewEntries()
-              .FirstOrDefault(entry =>
-                  entry.ObjectType?
-                  .Contains("Wormhole", StringComparison.CurrentCultureIgnoreCase) == true
-              );
-        }
-        else
-        {
-          // we are not currently scouting a wormhole
-          var bookmarksBeingScouted = allPlugins
-              .OfType<WormholeScout>()
-              .Select(p => p.ScoutingBookmarkName)
-              .Where(b => !string.IsNullOrWhiteSpace(b));
-
-          // find a bookmark for a hole that isn't being scouted by another character
-          var availableBookmark = wormholeBookmarks
-              .FirstOrDefault(b => !bookmarksBeingScouted
-                  .Contains(b.Text.Split("<t>").FirstOrDefault())
-              );
-
-          if (availableBookmark != null && availableBookmark.Text != ScoutingBookmarkName)
-          {
-            ScoutingBookmarkName = availableBookmark.Text
-                .Split("<t>").FirstOrDefault();
-            return true;
-          }
-
-          // if we get here there are no more holes that need scouts
-          ScoutingBookmarkName = null;
-        }
-      }
-
-      var overviews = bot.GetAllOverviewWindows();
-
-      var gridscoutOverview = overviews
-          .Where(ow => ow.OverviewTabName.Equals("gridscout", StringComparison.CurrentCultureIgnoreCase))
-          .FirstOrDefault();
+      var gridscoutOverview = bot.GetAllOverviewWindows()
+          .FirstOrDefault(ow => ow.OverviewTabName.Equals("gridscout", StringComparison.CurrentCultureIgnoreCase));
 
       if (gridscoutOverview == null)
       {
