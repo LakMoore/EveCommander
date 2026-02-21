@@ -26,8 +26,8 @@
       <ComboBox x:Name="IsOnlineFilterCombo" Width="100" Margin="4" SelectionChanged="IsOnlineFilter_SelectionChanged"
                 Style="{DynamicResource {x:Type ComboBox}}"
                 ItemContainerStyle="{DynamicResource {x:Type ComboBoxItem}}">
-        <ComboBoxItem Content="All" IsSelected="True" />
-        <ComboBoxItem Content="Online" />
+        <ComboBoxItem Content="All" />
+        <ComboBoxItem Content="Online" IsSelected="True" />
         <ComboBoxItem Content="Offline" />
       </ComboBox>
 
