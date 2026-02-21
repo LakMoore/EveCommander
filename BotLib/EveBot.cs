@@ -439,10 +439,15 @@ namespace BotLib
       return _UI.MarketOrdersWindow.Value?.CurrentTab;
     }
 
+    public ChatWindow? GetLocalChatWindow()
+    {
+      return _UI.ChatWindows.Value
+          .FirstOrDefault(chat => chat.Name?.Equals("Local", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
     public IEnumerable<ChatUserEntry> GetLocalCharacters()
     {
-      var localChat = _UI.ChatWindows.Value
-          .FirstOrDefault(chat => chat.Name?.Equals("Local", StringComparison.OrdinalIgnoreCase) == true);
+      var localChat = GetLocalChatWindow();
 
       if (localChat == null)
       {

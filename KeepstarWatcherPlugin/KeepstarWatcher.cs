@@ -20,19 +20,29 @@ namespace BotLibPlugins
 
     private static readonly HttpClient SharedHttpClient = new();
 
-    [BotLibSetting(SettingType = BotLibSetting.Type.MultiLineText, Description = "List of ship types to watch for.\nA message will be sent to Discord when a new ship of any of these types is spotted on grid.\nPartial matches are fine, spelling mistakes are not!")]
-    public readonly List<string> ShipTypesToWatch = [];
+    [BotLibSetting(
+      SettingType = BotLibSetting.Type.MultiLineText, 
+      Description = """
+        List of ship types to watch for.
+        Use one entry per line or comma separators.
+        A message will be sent to Discord when a new ship of any of these types is spotted on grid.
+        Partial matches are fine, spelling mistakes are not!
+        """
+    )]
+    public readonly string ShipTypesToWatch = "";
+    private readonly static char[] DELIMITERS = ['\r', '\n', ','];
 
     private readonly HashSet<OverviewEntry> previousGrid = [];
-    private bool gridInitialized = false;
     private bool decloakedWarningSent = false;
     private bool disconnectWarningSent = false;
 
-    private int lastPilotCount = -1;
     private long lastMessageTime = 0;
     private const long GRID_CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute; // 1 minutes in ticks
 
-    [BotLibSetting(SettingType = BotLibSetting.Type.SingleLineText, Description = "Get a webhook URL from Discord for the channel where you want alerts to appear.")]
+    [BotLibSetting(
+      SettingType = BotLibSetting.Type.SingleLineText, 
+      Description = "Get a webhook URL from Discord for the channel where you want alerts to appear."
+    )]
     public string? DiscordWebhookUrl;
 
     [SupportedOSPlatform("windows5.0")]
@@ -46,7 +56,11 @@ namespace BotLibPlugins
         return true;
       }
 
-      if (!ShipTypesToWatch.Any())
+      HashSet<string> ShipsToWatchSet = [.. ShipTypesToWatch.Trim().Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries)
+        .Select(s => s.Trim())
+        .Where(s => !string.IsNullOrEmpty(s))];
+
+      if (ShipsToWatchSet.Count == 0)
       {
         return new PluginResult
         {
@@ -145,37 +159,33 @@ namespace BotLibPlugins
             })
             .ToHashSet();
 
-          if (gridInitialized)
+          // Check for ships of interest (both new ships and initial grid scan)
+          var newShipsOfInterest = currentGrid
+            .Except(previousGrid)
+            .Where(cg => ShipsToWatchSet.Any(stw => cg.Type.Contains(stw)))
+            .ToList();
+
+          if (newShipsOfInterest.Count != 0)
           {
-            // compare current grid to previous grid
-            var newShipsOfInterest = currentGrid
-              .Except(previousGrid)
-              .Where(cg => ShipTypesToWatch.Any(stw => cg.Type.Contains(stw)))
-              .ToList();
+            await SendNewShips(newShipsOfInterest, bot.CurrentSystemName());
+            lastMessageTime = DateTime.Now.Ticks;
 
-            if (newShipsOfInterest.Count != 0)
+            // Update previous grid
+            previousGrid.Clear();
+            previousGrid.UnionWith(currentGrid);
+
+            return new PluginResult
             {
-              await SendNewShips(newShipsOfInterest, bot.CurrentSystemName());
-              lastMessageTime = DateTime.Now.Ticks;
-
-              // Update previous grid
-              previousGrid.Clear();
-              previousGrid.UnionWith(currentGrid);
-
-              return new PluginResult
-              {
-                WorkDone = true,
-                Message = $"{newShipsOfInterest.Count} new ship{ (newShipsOfInterest.Count == 1 ? "" : "s") } of interest on grid",
-                Background = Color.Orange,
-                Foreground = Color.White,
-              };
-            }
+              WorkDone = true,
+              Message = $"{newShipsOfInterest.Count} new ship{ (newShipsOfInterest.Count == 1 ? "" : "s") } of interest on grid",
+              Background = Color.Orange,
+              Foreground = Color.White,
+            };
           }
 
           // Update previous grid
           previousGrid.Clear();
           previousGrid.UnionWith(currentGrid);
-          gridInitialized = true;
 
           long deltaTime = DateTime.Now.Ticks - lastMessageTime;
           if (deltaTime < GRID_CHANGE_NOTIFICATION_DURATION)
@@ -191,7 +201,13 @@ namespace BotLibPlugins
             };
           }
 
-          return true;
+          return new PluginResult
+          {
+            WorkDone = true,
+            Message = "Grid clear",
+            Background = Color.Transparent,
+            Foreground = Color.White
+          };
         }
 
         // Nothing to do right now

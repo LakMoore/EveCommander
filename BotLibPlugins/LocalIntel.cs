@@ -16,9 +16,6 @@ namespace BotLibPlugins
     private long lastChangeTime = 0;
     private const long CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute;
 
-    [BotLibSetting(SettingType = BotLibSetting.Type.MultiLineText, Description = "Friendly pilot names (one per line). These will be ignored when reporting changes.")]
-    public string? FriendlyPilots;
-
     [SupportedOSPlatform("windows5.0")]
     public override async Task<PluginResult> DoWork(ParsedUserInterface uiRoot, GameClient gameClient, IEnumerable<IBotLibPlugin> allPlugins)
     {
@@ -30,9 +27,12 @@ namespace BotLibPlugins
 
       var bot = new EveBot(uiRoot);
 
+      // Get the system name early while UI is available
+      var currentSystemName = bot.CurrentSystemName();
+
       if (bot.IsDisconnected())
       {
-        await SendDisconnectedReport(bot.CurrentSystemName());
+        await SendDisconnectedReport(currentSystemName);
         return new PluginResult
         {
           WorkDone = true,
@@ -47,29 +47,23 @@ namespace BotLibPlugins
         return true;
       }
 
-      var locals = bot.GetLocalCharacters().ToList();
+      var local = bot.GetLocalChatWindow();
 
-      if (!locals.Any())
+      if (local == null)
       {
         return new PluginResult
         {
           WorkDone = true,
           Message = "No Local Chat Found",
-          Background = Color.Orange,
+          Background = Color.Red,
           Foreground = Color.White,
         };
       }
 
-      // Get the list of friendly pilots
-      var friendlies = GetFriendlyPilotNames();
-
-      // Filter out friendlies (case-insensitive)
-      var nonFriendlyPilots = locals
-          .Where(pilot => !friendlies.Contains(pilot.Name, StringComparer.OrdinalIgnoreCase))
-          .ToList();
-
+      var locals = bot.GetLocalCharacters().ToList();
+          
       // Get non-friendly pilot names for comparison
-      var currentPilotNames = nonFriendlyPilots
+      var currentPilotNames = locals
           .Select(p => p.Name)
           .OrderBy(name => name)
           .ToList();
@@ -83,14 +77,14 @@ namespace BotLibPlugins
         lastChangeTime = DateTime.Now.Ticks;
 
         // Send the report
-        await SendLocalReport(nonFriendlyPilots, bot.CurrentSystemName());
+        await SendLocalReport(locals, currentSystemName);
       }
 
       // Build the result message
       var result = new PluginResult
       {
         WorkDone = true,
-        Message = $"{nonFriendlyPilots.Count} non-friendly pilot{(nonFriendlyPilots.Count != 1 ? "s" : "")} in Local",
+        Message = $"{locals.Count - 1} pilot{((locals.Count - 1) != 1 ? "s" : "")} in Local",
         Background = ThemeColors.Surface,
         Foreground = ThemeColors.Foreground,
       };
@@ -105,19 +99,6 @@ namespace BotLibPlugins
       }
 
       return result;
-    }
-
-    private HashSet<string> GetFriendlyPilotNames()
-    {
-      if (string.IsNullOrWhiteSpace(FriendlyPilots))
-      {
-        return [];
-      }
-
-      return FriendlyPilots
-          .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-          .Where(name => !string.IsNullOrWhiteSpace(name))
-          .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task SendDisconnectedReport(string systemName)
@@ -170,7 +151,7 @@ namespace BotLibPlugins
           .Select(p => new LocalPilot()
           {
             Name = p.Name,
-            CharacterID = long.TryParse(p.CharacterID, out var id) ? id : 0,
+            CharacterID = p.CharacterID ?? 0,
             StandingHint = p.StandingIconHint ?? string.Empty
           })
           .ToList();
