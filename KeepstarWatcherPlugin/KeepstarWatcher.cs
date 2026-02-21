@@ -20,17 +20,8 @@ namespace BotLibPlugins
 
     private static readonly HttpClient SharedHttpClient = new();
 
-    // list of ship types to watch for
-    private readonly List<string> ShipTypesToWatch =
-    [
-      "Providence",
-      "Charon",
-      "Obelisk",
-      "Fenrir",
-      "Avalanche",
-      "Mobile Observatory",
-      "Buzzard",
-    ];
+    [BotLibSetting(SettingType = BotLibSetting.Type.MultiLineText, Description = "List of ship types to watch for.\nA message will be sent to Discord when a new ship of any of these types is spotted on grid.\nPartial matches are fine, spelling mistakes are not!")]
+    public readonly List<string> ShipTypesToWatch = [];
 
     private readonly HashSet<OverviewEntry> previousGrid = [];
     private bool gridInitialized = false;
@@ -55,6 +46,17 @@ namespace BotLibPlugins
         return true;
       }
 
+      if (!ShipTypesToWatch.Any())
+      {
+        return new PluginResult
+        {
+          WorkDone = true,
+          Message = "No ship types configured to watch for. Add some in settings.",
+          Background = Color.Red,
+          Foreground = Color.White,
+        };
+      }
+
       var bot = new EveBot(uiRoot);
 
       if (bot.IsDisconnected())
@@ -74,7 +76,6 @@ namespace BotLibPlugins
       }
       else
       {
-
         // are we warping or changing session?
         if (bot.IsInSessionChange() || bot.IsDocking())
         {
@@ -122,17 +123,18 @@ namespace BotLibPlugins
           }
           else
           {
+            // Show "Cloak Reengaged" message if we previously sent a warning
             if (decloakedWarningSent)
             {
+              decloakedWarningSent = false;
               return new PluginResult
               {
                 WorkDone = true,
-                Message = "Grid clear",
+                Message = "Cloak Reengaged",
                 Background = Color.Transparent,
                 Foreground = Color.Black,
               };
             }
-            decloakedWarningSent = false;
           }
 
           var currentGrid = bot.GetUniqueOverviewEntriesByNameAndType()
