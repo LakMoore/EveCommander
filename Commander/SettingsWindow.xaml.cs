@@ -277,12 +277,19 @@ namespace Commander
     {
       try
       {
-        _discordAuth = new DiscordAuthService();
-        _discordAuth.AuthenticationCompleted += OnDiscordAuthCompleted;
-        _discordAuth.AuthenticationFailed += OnDiscordAuthFailed;
-        _discordAuth.AuthenticationRevoked += OnDiscordAuthRevoked;
+        // Initialize the global DiscordAuthManager
+        await DiscordAuthManager.InitializeAsync();
 
-        await _discordAuth.InitializeAsync();
+        // Get the service instance for UI event handling
+        _discordAuth = DiscordAuthManager.GetService();
+
+        if (_discordAuth != null)
+        {
+          _discordAuth.AuthenticationCompleted += OnDiscordAuthCompleted;
+          _discordAuth.AuthenticationFailed += OnDiscordAuthFailed;
+          _discordAuth.AuthenticationRevoked += OnDiscordAuthRevoked;
+        }
+
         UpdateDiscordUI();
       }
       catch (Exception ex)

@@ -1,4 +1,4 @@
-﻿using BotLib;
+using BotLib;
 using eve_parse_ui;
 using read_memory_64_bit;
 using System.Diagnostics;
@@ -32,7 +32,7 @@ namespace BotLibPlugins
       "Buzzard",
     ];
 
-    private readonly List<OverviewEntry> previousGrid = [];
+    private readonly HashSet<OverviewEntry> previousGrid = [];
     private bool gridInitialized = false;
     private bool decloakedWarningSent = false;
     private bool disconnectWarningSent = false;
@@ -93,9 +93,7 @@ namespace BotLibPlugins
           return true;
         }
 
-        var overviews = bot.GetAllOverviewWindows();
-
-        if (!overviews.Any())
+        if (!bot.GetAllOverviewWindows().Any())
         {
           return new PluginResult
           {
@@ -137,32 +135,31 @@ namespace BotLibPlugins
             decloakedWarningSent = false;
           }
 
-          var currentGrid = overviews
-            .SelectMany(o => o.Entries)
+          var currentGrid = bot.GetUniqueOverviewEntriesByNameAndType()
             .Select(overviews => new OverviewEntry
             {
               Type = overviews.ObjectType ?? string.Empty,
               Name = overviews.ObjectName ?? string.Empty
             })
-            .ToList();
+            .ToHashSet();
 
           if (gridInitialized)
           {
             // compare current grid to previous grid
             var newShipsOfInterest = currentGrid
-              .Where(cg => !previousGrid.Any(pg => pg.Type == cg.Type && pg.Name == cg.Name))
+              .Except(previousGrid)
               .Where(cg => ShipTypesToWatch.Any(stw => cg.Type.Contains(stw)))
               .ToList();
-
-            // reset previous grid
-            previousGrid.Clear();
-            currentGrid.ForEach(entry => previousGrid.Add(entry));
-            gridInitialized = true;
 
             if (newShipsOfInterest.Count != 0)
             {
               await SendNewShips(newShipsOfInterest, bot.CurrentSystemName());
               lastMessageTime = DateTime.Now.Ticks;
+
+              // Update previous grid
+              previousGrid.Clear();
+              previousGrid.UnionWith(currentGrid);
+
               return new PluginResult
               {
                 WorkDone = true,
@@ -173,9 +170,9 @@ namespace BotLibPlugins
             }
           }
 
-          // reset previous grid
+          // Update previous grid
           previousGrid.Clear();
-          currentGrid.ForEach(entry => previousGrid.Add(entry));
+          previousGrid.UnionWith(currentGrid);
           gridInitialized = true;
 
           long deltaTime = DateTime.Now.Ticks - lastMessageTime;
@@ -196,7 +193,6 @@ namespace BotLibPlugins
         }
 
         // Nothing to do right now
-        return true;
       }
     }
 

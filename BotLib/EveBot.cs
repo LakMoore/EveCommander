@@ -272,6 +272,13 @@ namespace BotLib
           .SelectMany(window => window.Entries) ?? [];
     }
 
+    public IEnumerable<OverviewWindowEntry> GetUniqueOverviewEntriesByNameAndType()
+    {
+      return _UI.OverviewWindows.Value
+          .SelectMany(window => window.Entries)
+          .DistinctBy(entry => new { entry.ObjectType, entry.ObjectName }) ?? [];
+    }
+
     // TODO: get this from the SDE
     private readonly List<int> cloakIDs = [11370, 11577, 11578, 14234, 14776,
             14778, 14780, 14782, 15790, 16126, 20561, 20563, 20565, 32260];
@@ -432,9 +439,17 @@ namespace BotLib
       return _UI.MarketOrdersWindow.Value?.CurrentTab;
     }
 
-    public object GetLocalCharacters()
+    public IEnumerable<ChatUserEntry> GetLocalCharacters()
     {
-        throw new NotImplementedException();
+      var localChat = _UI.ChatWindows.Value
+          .FirstOrDefault(chat => chat.Name?.Equals("Local", StringComparison.OrdinalIgnoreCase) == true);
+
+      if (localChat == null)
+      {
+        return [];
+      }
+
+      return localChat.Userlist?.VisibleUsers ?? [];
     }
   }
 }

@@ -53,8 +53,25 @@ namespace Commander
     [SupportedOSPlatform("windows5.0")]
     private async void CommanderMain_Loaded(object sender, RoutedEventArgs e)
     {
-      HotkeyManager.Current.AddOrReplace("Stop", Key.F8, ModifierKeys.Control, StopKeyHandler);
-      HotkeyManager.Current.AddOrReplace("NextClient", Key.OemBackslash, ModifierKeys.None, NextClientHandler);
+      // Initialize Discord authentication (loads saved credentials)
+      await Commander.Services.DiscordAuthManager.InitializeAsync();
+
+      try
+      {
+        HotkeyManager.Current.AddOrReplace("Stop", Key.F8, ModifierKeys.Control, StopKeyHandler);
+        HotkeyManager.Current.AddOrReplace("NextClient", Key.OemBackslash, ModifierKeys.None, NextClientHandler);
+      }
+      catch (NHotkey.HotkeyAlreadyRegisteredException ex)
+      {
+        // Advise the user hotkey is already registered and isn't going to work
+        // ask the user to exit or continue
+        var result = MessageBox.Show($"Hotkey registration failed.\nThe hotkeys (including \"Stop\"!) will not work for this instance of Commander.\nRecommend you kill this instance and use the one with registred hotkeys.\nDo you want to quit this instance?", "Hotkey Registration Failed", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        if (result == MessageBoxResult.Yes) {
+          Application.Current.Shutdown();
+          return;
+        }
+      }
+
       await StartAsync();
     }
 

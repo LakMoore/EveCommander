@@ -2,6 +2,7 @@
 using eve_parse_ui;
 using GridScout2;
 using read_memory_64_bit;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.Versioning;
 
@@ -78,8 +79,8 @@ namespace BotLibPlugins
           {
             WorkDone = true,
             Message = string.Empty,
-            Background = Color.White,
-            Foreground = Color.Black,
+            Background = ThemeColors.Surface,
+            Foreground = ThemeColors.Foreground,
           };
 
           var wormholeCode = gridscoutOverview.Entries
@@ -88,6 +89,8 @@ namespace BotLibPlugins
               )
               .Select(wormhole => wormhole?.ObjectName?.Substring(9))
               .SingleOrDefault("")!;
+
+          wormholeCode = "TEST";
 
           if (string.IsNullOrEmpty(wormholeCode))
           {
@@ -132,8 +135,9 @@ namespace BotLibPlugins
           {
             // Lerp the colour from orange to transparent over time
             byte alpha = (byte)(255f - (255f * (double)deltaTime / GRID_CHANGE_NOTIFICATION_DURATION));
-            result.Background = Color.FromArgb(alpha, 255, 128, 0);
+            result.Background = Color.FromArgb(alpha, ThemeColors.Surface.R, ThemeColors.Surface.G, ThemeColors.Surface.B);
           }
+
 
           return result;
         }
@@ -145,6 +149,15 @@ namespace BotLibPlugins
 
     private async Task SendDisconnectedReport(string systemName)
     {
+      var discordToken = DiscordUserContext.GetAccessToken();
+
+      // Validate DiscordToken is available
+      if (string.IsNullOrEmpty(discordToken))
+      {
+        Debug.WriteLine("[GridScout] Cannot send report: Discord token not available. User must authenticate with Discord.");
+        return;
+      }
+
       GridScout2.ScoutMessage message = new()
       {
         Message = "",
@@ -156,13 +169,13 @@ namespace BotLibPlugins
         Version = "CommanderGridScout" // MainWindow.Version
       };
 
-      await SendIfChangedOrOld(message);
+      await SendIfChangedOrOld(message, discordToken);
     }
 
     private GridScout2.ScoutMessage? lastReportMessage;
     private long lastReportTime;
     private const long KEEP_ALIVE_INTERVAL = 5 * TimeSpan.TicksPerMinute; // 5 minutes in ticks
-    private async Task SendIfChangedOrOld(GridScout2.ScoutMessage message)
+    private async Task SendIfChangedOrOld(GridScout2.ScoutMessage message, string discordToken)
     {
       // if the message has changed or it's been a while, send it
       if (
@@ -170,7 +183,7 @@ namespace BotLibPlugins
           || lastReportTime < DateTime.Now.Ticks - KEEP_ALIVE_INTERVAL
       )
       {
-        await GridScout2.Server.SendReport(message);
+        await GridScout2.Server.SendReport(message, discordToken);
 
         lastReportMessage = message;
         lastReportTime = DateTime.Now.Ticks;
@@ -179,6 +192,15 @@ namespace BotLibPlugins
 
     private async Task SendReport(OverviewWindow gridscoutOverview, string systemName, string wormhole)
     {
+      var discordToken = DiscordUserContext.GetAccessToken();
+
+      // Validate DiscordToken is available
+      if (string.IsNullOrEmpty(discordToken))
+      {
+        Debug.WriteLine("[GridScout] Cannot send report: Discord token not available. User must authenticate with Discord.");
+        return;
+      }
+
       var text = gridscoutOverview.Entries
           //.Where(e => e.ObjectType?.StartsWith("Wormhole ", StringComparison.CurrentCultureIgnoreCase) != true)
           .Select(e => e.ObjectType + " " + e.ObjectCorporation + " " + e.ObjectAlliance + " " + e.ObjectName)
@@ -208,7 +230,7 @@ namespace BotLibPlugins
         Version = "CommanderGridScout" // MainWindow.Version
       };
 
-      await SendIfChangedOrOld(message);
+      await SendIfChangedOrOld(message, discordToken);
     }
 
   }

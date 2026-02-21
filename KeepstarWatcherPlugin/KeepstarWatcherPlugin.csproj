@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <BaseOutputPath></BaseOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- Use relative path from project directory, not solution directory -->
+    <CommanderPluginsDir>$(MSBuildProjectDirectory)\..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\</CommanderPluginsDir>
+  </PropertyGroup>
+
+  <Target Name="CopyPluginsToCommander" AfterTargets="Build">
+    <ItemGroup>
+      <!-- Only copy the plugin DLL/PDB -->
+      <PluginFiles Include="$(TargetDir)$(TargetFileName)" />
+      <PluginFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+      <!-- Exclude shared dependencies that Commander already has -->
+      <!-- BotLib, eve-parse-ui, read-memory-64-bit, Newtonsoft.Json are all in Commander -->
+    </ItemGroup>
+
+    <MakeDir Directories="$(CommanderPluginsDir)" />
+
+    <Copy SourceFiles="@(PluginFiles)" 
+          DestinationFolder="$(CommanderPluginsDir)" 
+          SkipUnchangedFiles="true"
+          OverwriteReadOnlyFiles="true" />
+
+    <Message Text="Copied KeepstarWatcherPlugin to $(CommanderPluginsDir)" Importance="high" />
+  </Target>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BotLib\BotLib.csproj" />
+  </ItemGroup>
+
+</Project>

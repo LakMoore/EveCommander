@@ -56,12 +56,35 @@ namespace Commander
 
     private void PluginButton_Click(object sender, RoutedEventArgs e)
     {
+      // Open PluginSelector as a modal for this character
+      if (sender is not Button button) return;
+      if (button.DataContext is not CommanderCharacter character) return;
 
-    }
+      // Find the parent CharacterWindow to set as owner
+      Window? parentWindow = Window.GetWindow(this);
 
-    private void Selected_Click(object sender, RoutedEventArgs e)
-    {
+      PluginSelector pluginSelector = new()
+      {
+        Owner = parentWindow,
+        WindowStartupLocation = WindowStartupLocation.CenterOwner
+      };
 
+      pluginSelector.SetPlugins(character.Plugins);
+      var result = pluginSelector.ShowDialog();
+
+      // Only apply changes if OK was clicked
+      if (result == true)
+      {
+        var selectedNames = pluginSelector.GetSelectedPluginNames().ToHashSet();
+
+        // Apply selection to this character's plugins
+        foreach (var plugin in character.Plugins)
+        {
+          plugin.IsEnabled = selectedNames.Contains(plugin.Name);
+        }
+
+        character.OnPropertyChanged(nameof(CommanderCharacter.EnabledPluginDescription));
+      }
     }
   }
 }

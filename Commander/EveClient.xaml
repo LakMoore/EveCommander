@@ -7,11 +7,18 @@
              mc:Ignorable="d" 
              d:DesignHeight="54.507" d:DesignWidth="800"
              MouseEnter="UserControl_MouseEnter" MouseLeave="UserControl_MouseLeave" MouseLeftButtonDown="UserControl_MouseLeftButtonDown" MouseLeftButtonUp="UserControl_MouseLeftButtonUp">
-  <Grid x:Name="BaseGrid">
+  <Grid x:Name="BaseGrid" Background="{StaticResource BackgroundBrush}">
     <Grid.ColumnDefinitions>
       <ColumnDefinition />
       <ColumnDefinition Width="Auto"/>
     </Grid.ColumnDefinitions>
+
+    <!-- Alert overlay layer - sits between background and content -->
+    <Border x:Name="AlertOverlay" 
+            Background="Transparent"
+            Opacity="0"
+            Grid.ColumnSpan="2" />
+
     <StackPanel Orientation="Horizontal" Margin="10,10,10,10" Grid.Column="0">
       <Label x:Name="Alive" Content="-" Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
       <Label x:Name="Character" Content="Name" Width="150" VerticalAlignment="Center" />

@@ -443,5 +443,36 @@ namespace Commander
           .FirstOrDefault(c => c.Name == CurrentCharacterName)?
           .EnabledPluginDescription ?? "Missing Character for Plugins";
     }
+
+    /// <summary>
+    /// Show an alert overlay that fades from the specified color to transparent
+    /// </summary>
+    /// <param name="alertColor">The alert color (e.g., Colors.Red, Colors.Orange)</param>
+    /// <param name="durationMs">Duration of the fade animation in milliseconds (default: 2000ms)</param>
+    public async void ShowAlert(Color alertColor, int durationMs = 2000)
+    {
+      // Set the alert color
+      AlertOverlay.Background = new SolidColorBrush(alertColor);
+      AlertOverlay.Opacity = 1.0;
+
+      // Animate the fade to transparent
+      var startTime = DateTime.Now.Ticks;
+      var duration = durationMs * TimeSpan.TicksPerMillisecond;
+
+      while (DateTime.Now.Ticks - startTime < duration)
+      {
+        var elapsed = DateTime.Now.Ticks - startTime;
+        var progress = (double)elapsed / duration;
+
+        // Lerp from 1.0 to 0.0
+        AlertOverlay.Opacity = 1.0 - progress;
+
+        await Task.Delay(16); // ~60fps
+      }
+
+      // Ensure fully transparent at the end
+      AlertOverlay.Opacity = 0;
+      AlertOverlay.Background = new SolidColorBrush(Colors.Transparent);
+    }
   }
 }
