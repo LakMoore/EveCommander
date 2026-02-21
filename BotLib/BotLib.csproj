@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="del /s /q &quot;$(ProjectDir)..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\*&quot;" />
+    <Exec Command="if exist &quot;$(ProjectDir)..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\&quot; del /s /q &quot;$(ProjectDir)..\Commander\bin\$(Configuration)\net9.0-windows\Plugins\*&quot;" />
   </Target>
 
 </Project>
