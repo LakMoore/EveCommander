@@ -93,7 +93,8 @@ namespace Commander
         }
 
         var fullPath = path;
-        frame.Tag = (fullPath, perEntryTags);
+        var ancestorsArray = ancestors?.ToArray() ?? Array.Empty<UITreeNodeNoDisplayRegion>();
+        frame.Tag = (fullPath, perEntryTags, ancestorsArray);
         frame.MouseEnter += EveRoot_MouseEnter;
         frame.MouseLeave += EveRoot_MouseLeave;
         frame.MouseLeftButtonUp += Frame_MouseLeftButtonUp;
@@ -108,14 +109,21 @@ namespace Commander
       if (sender is not Frame frame)
         return;
 
-      // Support both legacy string tag and new (fullPath, perEntryTags) tuple
+      // Support both legacy string tag and new (fullPath, perEntryTags, ancestors) tuple
       string fullPath = string.Empty;
       string[] perEntryTags = Array.Empty<string>();
+      UITreeNodeNoDisplayRegion[] ancestors = Array.Empty<UITreeNodeNoDisplayRegion>();
 
-      if (frame.Tag is ValueTuple<string, string[]> tuple)
+      if (frame.Tag is ValueTuple<string, string[], UITreeNodeNoDisplayRegion[]> tuple)
       {
         fullPath = tuple.Item1 ?? string.Empty;
         perEntryTags = tuple.Item2 ?? Array.Empty<string>();
+        ancestors = tuple.Item3 ?? Array.Empty<UITreeNodeNoDisplayRegion>();
+      }
+      else if (frame.Tag is ValueTuple<string, string[]> oldTuple)
+      {
+        fullPath = oldTuple.Item1 ?? string.Empty;
+        perEntryTags = oldTuple.Item2 ?? Array.Empty<string>();
       }
       else if (frame.Tag is string s)
       {
@@ -123,7 +131,6 @@ namespace Commander
         var lines = s.Split(new[] { '\n' }, System.StringSplitOptions.None);
         var pathLine = lines.Length > 0 ? lines[0] : string.Empty;
         var rawEntries = pathLine.Split(new[] { " > " }, System.StringSplitOptions.None);
-        // perEntryTags will be filled lazily from the legacy tag when a button is clicked
         perEntryTags = [.. rawEntries.Select(r => r?.Trim()).Where(r => !string.IsNullOrEmpty(r)).Cast<string>()];
       }
 
@@ -167,25 +174,180 @@ namespace Commander
       detailsText.VerticalAlignment = VerticalAlignment.Stretch;
       detailsText.HorizontalAlignment = HorizontalAlignment.Stretch;
 
+      // Helper to remove everything after a specific button
+      void RemoveElementsAfterButton(Button button)
+      {
+        var buttonIndex = wrap.Children.IndexOf(button);
+        if (buttonIndex >= 0)
+        {
+          // Remove all elements after this button
+          var childrenToRemove = wrap.Children.Cast<UIElement>().Skip(buttonIndex + 1).ToList();
+          foreach (var child in childrenToRemove)
+          {
+            wrap.Children.Remove(child);
+          }
+        }
+      }
+
+      // Helper to add separator before adding new element
+      void AddSeparator()
+      {
+        if (wrap.Children.Count > 0)
+        {
+          var sep = new TextBlock { Text = " > ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2) };
+          wrap.Children.Add(sep);
+        }
+      }
+
+      // Recursive helper to add a button for a node and setup children navigation
+      void AddNodeButton(UITreeNodeNoDisplayRegion node, string nodeDesc, string nodeTag)
+      {
+        AddSeparator();
+        var nodeBtn = new Button { Content = nodeDesc, Margin = new Thickness(2) };
+
+        nodeBtn.Click += (_, __) =>
+        {
+          detailsText.Text = $"Selected: {nodeDesc}\r\n\r\nTag:\r\n{nodeTag}";
+          RemoveElementsAfterButton(nodeBtn);
+
+          // If this node has children, show ComboBox
+          var children = node.Children?.ToList();
+          if (children != null && children.Any())
+          {
+            AddSeparator();
+            var childCombo = new ComboBox { Margin = new Thickness(2), MinWidth = 150 };
+
+            foreach (var child in children)
+            {
+              var childType = child.pythonObjectTypeName;
+              var childName = child.GetNameFromDictEntries();
+              var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
+              childCombo.Items.Add(new ComboBoxItem { Content = childDesc, Tag = child });
+            }
+
+            childCombo.SelectionChanged += (_, __) =>
+            {
+              if (childCombo.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag is UITreeNodeNoDisplayRegion selectedChild)
+              {
+                // Remove the combobox (and its preceding separator)
+                var comboIndex = wrap.Children.IndexOf(childCombo);
+                if (comboIndex > 0 && wrap.Children[comboIndex - 1] is TextBlock)
+                {
+                  wrap.Children.RemoveAt(comboIndex - 1); // Remove separator
+                }
+                wrap.Children.Remove(childCombo);
+
+                // Build tag for this child
+                var childType = selectedChild.pythonObjectTypeName;
+                var childName = selectedChild.GetNameFromDictEntries();
+                var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
+                var childDict = (selectedChild.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
+                    .Select(de => de.Key + " = " + de.Value?.ToString());
+                var childOther = selectedChild.otherDictEntriesKeys ?? Enumerable.Empty<string>();
+                var childTag = string.Join("\n", new[] { childDesc }.Concat(childDict).Concat(childOther));
+
+                // Recursively add button for this child
+                AddNodeButton(selectedChild, childDesc, childTag);
+
+                // Auto-click to continue navigation
+                var addedBtn = wrap.Children.OfType<Button>().LastOrDefault();
+                if (addedBtn != null)
+                {
+                  addedBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+              }
+            };
+
+            wrap.Children.Add(childCombo);
+          }
+        };
+
+        wrap.Children.Add(nodeBtn);
+      }
+
+      // Helper to rebuild path from button click
+      void RebuildPathFromIndex(int clickedIndex, Button clickedButton)
+      {
+        // Clear everything after the clicked button
+        RemoveElementsAfterButton(clickedButton);
+
+        // Show details for clicked node
+        string details;
+        if (perEntryTags != null && clickedIndex < perEntryTags.Length)
+        {
+          details = perEntryTags[clickedIndex];
+        }
+        else
+        {
+          details = fullPath;
+        }
+        detailsText.Text = $"Selected: {entries[clickedIndex]}\r\n\r\nTag:\r\n{details}";
+
+        // If this node has children, add ComboBox
+        if (ancestors != null && clickedIndex < ancestors.Length)
+        {
+          var node = ancestors[clickedIndex];
+          var children = node.Children?.ToList();
+          if (children != null && children.Any())
+          {
+            AddSeparator();
+
+            var combo = new ComboBox { Margin = new Thickness(2), MinWidth = 150 };
+            foreach (var child in children)
+            {
+              var childType = child.pythonObjectTypeName;
+              var childName = child.GetNameFromDictEntries();
+              var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
+              combo.Items.Add(new ComboBoxItem { Content = childDesc, Tag = child });
+            }
+
+            combo.SelectionChanged += (_, __) =>
+            {
+              if (combo.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag is UITreeNodeNoDisplayRegion selectedNode)
+              {
+                // Remove the combobox (and its preceding separator)
+                var comboIndex = wrap.Children.IndexOf(combo);
+                if (comboIndex > 0 && wrap.Children[comboIndex - 1] is TextBlock)
+                {
+                  wrap.Children.RemoveAt(comboIndex - 1); // Remove separator
+                }
+                wrap.Children.Remove(combo);
+
+                // Build tag for this child
+                var childType = selectedNode.pythonObjectTypeName;
+                var childName = selectedNode.GetNameFromDictEntries();
+                var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
+                var childDict = (selectedNode.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
+                    .Select(de => de.Key + " = " + de.Value?.ToString());
+                var childOther = selectedNode.otherDictEntriesKeys ?? Enumerable.Empty<string>();
+                var childTag = string.Join("\n", new[] { childDesc }.Concat(childDict).Concat(childOther));
+
+                // Use recursive helper to add button and setup children
+                AddNodeButton(selectedNode, childDesc, childTag);
+
+                // Auto-click to continue navigation
+                var addedBtn = wrap.Children.OfType<Button>().LastOrDefault();
+                if (addedBtn != null)
+                {
+                  addedBtn.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                }
+              }
+            };
+
+            wrap.Children.Add(combo);
+          }
+        }
+      }
+
+      // Build initial path buttons
       for (int i = 0; i < entries.Length; i++)
       {
         var entry = entries[i]!;
-        var btn = new Button { Content = entry, Tag = entry, Margin = new Thickness(2) };
+        var btn = new Button { Content = entry, Tag = i, Margin = new Thickness(2) };
         var localIndex = i;
         btn.Click += (_, __) =>
         {
-          // When a path button is clicked, show the tag information related to that path entry in the details textbox
-          string details;
-          if (perEntryTags != null && localIndex < perEntryTags.Length)
-          {
-            details = perEntryTags[localIndex];
-          }
-          else
-          {
-            // Fallback: show the full frame tag content
-            details = fullPath;
-          }
-          detailsText.Text = $"Selected: {entry}\r\n\r\nTag:\r\n{details}";
+          RebuildPathFromIndex(localIndex, btn);
         };
         wrap.Children.Add(btn);
 
@@ -221,9 +383,13 @@ namespace Commander
         frame.BorderBrush = new SolidColorBrush(Colors.Red);
 
         string? path = null;
-        if (frame.Tag is ValueTuple<string, string[]> t)
+        if (frame.Tag is ValueTuple<string, string[], UITreeNodeNoDisplayRegion[]> t)
         {
           path = t.Item1;
+        }
+        else if (frame.Tag is ValueTuple<string, string[]> oldT)
+        {
+          path = oldT.Item1;
         }
         else if (frame.Tag is string s)
         {
