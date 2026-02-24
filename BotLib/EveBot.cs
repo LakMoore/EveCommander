@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.Versioning;
+using System.Text.RegularExpressions;
 using WindowsInput;
 
 namespace BotLib
@@ -279,6 +280,37 @@ namespace BotLib
           .DistinctBy(entry => new { entry.ObjectType, entry.ObjectName }) ?? [];
     }
 
+    public IEnumerable<OverviewWindowEntry> GetNonFriendlyPilotsOnGrid()
+    {
+      // Get all overview entries
+      var entries = GetOverviewEntries();
+
+      // Filter to only non-friendly entries with standing hints
+      return entries.Where(entry =>
+      {
+        if (string.IsNullOrEmpty(entry.FlagStateHint))
+          return false;
+
+        // If it has a standing hint but it's not friendly, it's non-friendly
+        return !IsFriendlyStandingHint(entry.FlagStateHint);
+      });
+    }
+
+    public bool IsFriendlyStandingHint(string? standingHint)
+    {
+      if (string.IsNullOrWhiteSpace(standingHint))
+      {
+        return false;
+      }
+
+      string normalizedHint = standingHint.Trim().ToLower();
+
+      // Check for friendly standing patterns
+      return Regex.IsMatch(normalizedHint, 
+        @"in your fleet|in your gang|in your capsuleer corporation|in your corporation|in your alliance|good standing|excellent standing",
+        RegexOptions.IgnoreCase);
+    }
+
     // TODO: get this from the SDE
     private readonly List<int> cloakIDs = [11370, 11577, 11578, 14234, 14776,
             14778, 14780, 14782, 15790, 16126, 20561, 20563, 20565, 32260];
@@ -306,6 +338,11 @@ namespace BotLib
     public bool IsTethered()
     {
       return DefensiveBuffs().Contains("tethering");
+    }
+
+    public Hitpoints? GetShipHitpoints()
+    {
+      return _UI.ShipUI.Value?.HitpointsPercent;
     }
 
     readonly ColorComponents AutoPilotRouteColor = new()

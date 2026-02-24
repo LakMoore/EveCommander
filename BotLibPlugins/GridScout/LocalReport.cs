@@ -6,14 +6,18 @@ namespace GridScout2
     public required string System { get; init; }
     public required long Time { get; init; }
     public required List<LocalPilot> Locals { get; init; }
+    public string? Status { get; init; }
+    public List<GridPilot>? OnGrid { get; init; }
 
     public bool MyEquals(object? obj)
     {
       return obj is LocalReport report &&
       ScoutName == report.ScoutName &&
       System == report.System &&
-      Time == report.Time &&
-      Locals.SequenceEqual(report.Locals);
+      Status == report.Status &&
+      Locals.SequenceEqual(report.Locals) &&
+      (OnGrid == null && report.OnGrid == null || 
+       OnGrid != null && report.OnGrid != null && OnGrid.SequenceEqual(report.OnGrid));
     }
   }
 }
