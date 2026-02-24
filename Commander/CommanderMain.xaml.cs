@@ -28,6 +28,11 @@ namespace Commander
     public CommanderMain()
     {
       InitializeComponent();
+
+      // Set window title with version number
+      var version = Assembly.GetExecutingAssembly().GetName().Version;
+      Title = $"Commander v{version?.Major}.{version?.Minor}.{version?.Build}";
+
       Loaded += CommanderMain_Loaded;
     }
 
