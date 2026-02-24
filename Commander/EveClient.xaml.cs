@@ -195,6 +195,8 @@ namespace Commander
     {
       DetailsPanel.Width = 0;
       MemoryScanPanel.Width = Double.NaN;
+      Result.Content = "";
+      Result.Width = 0;
 
       var address = await Task.Run(() => MemoryReader.FindUIRootAddressFromProcessId(cachedGameClient.processId));
       if (address != null)
@@ -228,6 +230,7 @@ namespace Commander
           {
             Dispatcher.Invoke(() =>
             {
+              CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
               Result.Content = ex.Message;
               Result.Width = Double.NaN;
             });
