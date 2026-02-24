@@ -30,14 +30,27 @@ namespace BotLibPlugins
         """
     )]
     public readonly string ShipTypesToWatch = "";
+
+    [BotLibSetting(
+      SettingType = BotLibSetting.Type.MultiLineText,
+      Description = """
+        List of structure types to monitor.
+        Use one entry per line or comma separators.
+        A notification will be sent to Discord when a structure from this list becomes unanchored.
+        """
+    )]
+    public readonly string TargetStructureTypes = "";
+
     private readonly static char[] DELIMITERS = ['\r', '\n', ','];
 
     private readonly HashSet<OverviewEntry> previousGrid = [];
+    private readonly Dictionary<string, long> structureLastNotificationTimes = [];
     private bool decloakedWarningSent = false;
     private bool disconnectWarningSent = false;
 
     private long lastMessageTime = 0;
     private const long GRID_CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute; // 1 minutes in ticks
+    private const long STRUCTURE_NOTIFICATION_INTERVAL = 2 * TimeSpan.TicksPerMinute; // 2 minutes in ticks
 
     [BotLibSetting(
       SettingType = BotLibSetting.Type.SingleLineText, 
@@ -57,6 +70,10 @@ namespace BotLibPlugins
       }
 
       HashSet<string> ShipsToWatchSet = [.. ShipTypesToWatch.Trim().Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries)
+        .Select(s => s.Trim())
+        .Where(s => !string.IsNullOrEmpty(s))];
+
+      HashSet<string> StructuresToWatchSet = [.. TargetStructureTypes.Trim().Split(DELIMITERS, StringSplitOptions.RemoveEmptyEntries)
         .Select(s => s.Trim())
         .Where(s => !string.IsNullOrEmpty(s))];
 
@@ -159,6 +176,64 @@ namespace BotLibPlugins
             })
             .ToHashSet();
 
+          // Check for structures where name matches type exactly (unanchored/vulnerable)
+          var matchedStructures = new List<OverviewEntry>();
+          if (StructuresToWatchSet.Count > 0)
+          {
+            matchedStructures = currentGrid
+              .Where(entry => StructuresToWatchSet.Any(structType => entry.Type.Contains(structType)))
+              .Where(entry => entry.Name == entry.Type)
+              .ToList();
+
+            // Send notifications for matched structures (new or repeat after interval)
+            var now = DateTime.Now.Ticks;
+            var structuresNeedingNotification = matchedStructures
+              .Where(structure => 
+              {
+                var key = $"{structure.Type}|{structure.Name}";
+                if (!structureLastNotificationTimes.TryGetValue(key, out long lastTime))
+                {
+                  return true; // New structure
+                }
+                return (now - lastTime) >= STRUCTURE_NOTIFICATION_INTERVAL; // Time for repeat
+              })
+              .ToList();
+
+            if (structuresNeedingNotification.Count > 0)
+            {
+              await SendStructureAlert(structuresNeedingNotification, bot.CurrentSystemName());
+
+              // Update last notification times
+              foreach (var structure in structuresNeedingNotification)
+              {
+                var key = $"{structure.Type}|{structure.Name}";
+                structureLastNotificationTimes[key] = now;
+              }
+            }
+
+            // Clean up notification times for structures no longer on grid
+            var currentStructureKeys = matchedStructures
+              .Select(s => $"{s.Type}|{s.Name}")
+              .ToHashSet();
+            var keysToRemove = structureLastNotificationTimes.Keys
+              .Where(key => !currentStructureKeys.Contains(key))
+              .ToList();
+
+            // Send "scooped" notification for structures that left the grid
+            if (keysToRemove.Count > 0)
+            {
+              var scoopedStructures = keysToRemove
+                .Select(key => key.Split('|')[0]) // Extract structure type from key
+                .ToList();
+              await SendStructureScoopedAlert(scoopedStructures, bot.CurrentSystemName());
+            }
+
+            foreach (var key in keysToRemove)
+            {
+              structureLastNotificationTimes.Remove(key);
+            }
+          }
+
           // Check for ships of interest (both new ships and initial grid scan)
           var newShipsOfInterest = currentGrid
             .Except(previousGrid)
@@ -179,6 +254,22 @@ namespace BotLibPlugins
               WorkDone = true,
               Message = $"{newShipsOfInterest.Count} new ship{ (newShipsOfInterest.Count == 1 ? "" : "s") } of interest on grid",
               Background = Color.Orange,
+              Foreground = Color.White,
+            };
+          }
+
+          // If we have matched structures, show that in the status
+          if (matchedStructures.Count > 0)
+          {
+            // Update previous grid
+            previousGrid.Clear();
+            previousGrid.UnionWith(currentGrid);
+
+            return new PluginResult
+            {
+              WorkDone = true,
+              Message = $"{matchedStructures.Count} unanchored structure{ (matchedStructures.Count == 1 ? "" : "s") } on grid",
+              Background = Color.Red,
               Foreground = Color.White,
             };
           }
@@ -218,6 +309,22 @@ namespace BotLibPlugins
     {
       var shipList = string.Join("\n, ", newShipsOfInterest.Select(s => $"{s.Type} [{s.Name}]"));
       var message = $"{this.CharacterName} has seen the following ships in {systemName}:\\n{shipList}";
+
+      await SendDiscordMessage(message);
+    }
+
+    private async Task SendStructureAlert(List<OverviewEntry> structures, string systemName)
+    {
+      var structureList = string.Join("\n, ", structures.Select(s => s.Type));
+      var message = $"⚠️ {this.CharacterName} reports vulnerable structure(s) in {systemName}:\\n{structureList}";
+
+      await SendDiscordMessage(message);
+    }
+
+    private async Task SendStructureScoopedAlert(List<string> structureTypes, string systemName)
+    {
+      var structureList = string.Join("\n, ", structureTypes);
+      var message = $"✅ {this.CharacterName} reports structure(s) scooped in {systemName}:\\n{structureList}";
 
       await SendDiscordMessage(message);
     }
