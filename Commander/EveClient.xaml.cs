@@ -218,13 +218,11 @@ namespace Commander
 
       if (CommanderClient?.GameClient.uiRootAddress != null)
       {
-        var _uiRoot = await Task.Run(async () =>
+        var rootNode = await Task.Run(() =>
         {
           try
           {
-            UITreeNode rootNode = MemoryReader.ReadMemory(CommanderClient.GameClient.processId, CommanderClient.GameClient.uiRootAddress)!;
-            if (rootNode == null) return null;
-            return UIParser.ParseUserInterface(rootNode);
+            return MemoryReader.ReadMemory(CommanderClient.GameClient.processId, CommanderClient.GameClient.uiRootAddress)!;
           }
           catch (Exception ex)
           {
@@ -234,16 +232,26 @@ namespace Commander
               Result.Content = ex.Message;
               Result.Width = Double.NaN;
             });
-
-            // try again?
-            if (CommanderMain.IsRunning())
-            {
-              await Task.Delay(5000);
-              await CommandClient();  // TODO: this could become an infinite stack!
-            }
-            return null;
           }
+          return null;
         });
+
+        if (rootNode == null)
+        {
+          CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
+          Result.Content = "Null RootNode!";
+          Result.Width = Double.NaN;
+
+          // try again?
+          if (CommanderMain.IsRunning())
+          {
+            await Task.Delay(5000);
+            await CommandClient();  // TODO: this could become an infinite stack!
+          }
+          return;
+        }
+
+        ParsedUserInterface _uiRoot = UIParser.ParseUserInterface(rootNode);
 
         // update alive indicator
         aliveSpinnerIndex = (aliveSpinnerIndex + 1) % ALIVE_SPINNER.Length;
@@ -311,7 +319,7 @@ namespace Commander
           }
         }
 
-        if (!CommanderMain.IsRunning() || bot.IsDisconnected())
+        if (!CommanderMain.IsRunning())
         {
           return;
         }
