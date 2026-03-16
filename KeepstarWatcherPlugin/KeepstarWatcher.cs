@@ -3,7 +3,13 @@ using eve_parse_ui;
 using read_memory_64_bit;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Runtime.Versioning;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace BotLibPlugins
 {
@@ -18,7 +24,10 @@ namespace BotLibPlugins
   {
     public override string Name => "Keepstar Watcher";
 
-    private static readonly HttpClient SharedHttpClient = new();
+    private const int DISCORD_MAX_CONTENT_LENGTH = 2000;
+    private const int DISCORD_MAX_SEND_ATTEMPTS = 4;
+    private static readonly JsonSerializerOptions DISCORD_JSON_OPTIONS = new(JsonSerializerDefaults.Web);
+    private static readonly HttpClient SharedHttpClient = CreateHttpClient();
 
     [BotLibSetting(
       SettingType = BotLibSetting.Type.MultiLineText, 
@@ -88,6 +97,17 @@ namespace BotLibPlugins
         };
       }
 
+      if (string.IsNullOrWhiteSpace(DiscordWebhookUrl))
+      {
+        return new PluginResult
+          {
+            WorkDone = true,
+            Message = "No Discord webhook URL configured. Add one in settings.",
+            Background = Color.Red,
+            Foreground = Color.White,
+          };
+      }
+
       var bot = new EveBot(uiRoot);
 
       if (bot.IsDisconnected())
@@ -107,6 +127,8 @@ namespace BotLibPlugins
       }
       else
       {
+        disconnectWarningSent = false; // Reset disconnect warning if we are connected
+
         // are we warping or changing session?
         if (bot.IsInSessionChange() || bot.IsDocking())
         {
@@ -238,7 +260,7 @@ namespace BotLibPlugins
           var newShipsOfInterest = currentGrid
             .Except(previousGrid)
             .Where(cg => ShipsToWatchSet.Any(stw => cg.Type.Contains(stw)))
-            .ToList();
+            .ToHashSet();
 
           if (newShipsOfInterest.Count != 0)
           {
@@ -305,26 +327,26 @@ namespace BotLibPlugins
       }
     }
 
-    private async Task SendNewShips(List<OverviewEntry> newShipsOfInterest, string systemName)
+    private async Task SendNewShips(HashSet<OverviewEntry> newShipsOfInterest, string systemName)
     {
-      var shipList = string.Join("\n, ", newShipsOfInterest.Select(s => $"{s.Type} [{s.Name}]"));
-      var message = $"{this.CharacterName} has seen the following ships in {systemName}:\\n{shipList}";
+      var shipList = string.Join("\n", newShipsOfInterest.Select(s => $"{s.Type} [{s.Name}]"));
+      var message = $"{this.CharacterName} has seen the following ships in {systemName}:\n{shipList}";
 
       await SendDiscordMessage(message);
     }
 
     private async Task SendStructureAlert(List<OverviewEntry> structures, string systemName)
     {
-      var structureList = string.Join("\n, ", structures.Select(s => s.Type));
-      var message = $"⚠️ {this.CharacterName} reports vulnerable structure(s) in {systemName}:\\n{structureList}";
+      var structureList = string.Join("\n", structures.Select(s => s.Type));
+      var message = $"⚠️ {this.CharacterName} reports vulnerable structure(s) in {systemName}:\n{structureList}";
 
       await SendDiscordMessage(message);
     }
 
     private async Task SendStructureScoopedAlert(List<string> structureTypes, string systemName)
     {
-      var structureList = string.Join("\n, ", structureTypes);
-      var message = $"✅ {this.CharacterName} reports structure(s) scooped in {systemName}:\\n{structureList}";
+      var structureList = string.Join("\n", structureTypes);
+      var message = $"✅ {this.CharacterName} reports structure(s) scooped in {systemName}:\n{structureList}";
 
       await SendDiscordMessage(message);
     }
@@ -345,21 +367,239 @@ namespace BotLibPlugins
 
     private async Task SendDiscordMessage(string message)
     {
-      try
+      if (string.IsNullOrWhiteSpace(DiscordWebhookUrl))
       {
-        // post a message to discord
-        var content = new StringContent($"{{\"content\":\"{message}\"}}", System.Text.Encoding.UTF8, "application/json");
-        var response = await SharedHttpClient.PostAsync(DiscordWebhookUrl, content);
-        if (response != null)
-        {
-          Debug.WriteLine($"Sent '{message}' for {this.CharacterName}");
-          Debug.WriteLine(await response.Content.ReadAsStringAsync());
-        }
+        Debug.WriteLine($"Discord webhook URL is missing for {this.CharacterName}.");
+        return;
       }
-      catch (Exception ex)
+
+      if (!Uri.TryCreate(DiscordWebhookUrl.Trim(), UriKind.Absolute, out var webhookUri))
       {
-        Debug.WriteLine($"Error sending Discord message: {ex.Message}");
+        Debug.WriteLine($"Discord webhook URL is invalid for {this.CharacterName}: '{DiscordWebhookUrl}'.");
+        return;
+      }
+
+      foreach (var messageChunk in SplitDiscordMessage(message))
+      {
+        await SendDiscordMessageChunk(webhookUri, messageChunk);
       }
     }
+
+    private async Task SendDiscordMessageChunk(Uri webhookUri, string message)
+    {
+      var payload = JsonSerializer.Serialize(
+        new DiscordWebhookPayload(message, new DiscordAllowedMentions([])),
+        DISCORD_JSON_OPTIONS);
+
+      for (var attempt = 1; attempt <= DISCORD_MAX_SEND_ATTEMPTS; attempt++)
+      {
+        try
+        {
+          using var request = new HttpRequestMessage(HttpMethod.Post, webhookUri)
+          {
+            Content = new StringContent(payload, Encoding.UTF8, "application/json")
+          };
+
+          using var response = await SharedHttpClient.SendAsync(request);
+          var responseBody = await response.Content.ReadAsStringAsync();
+
+          if (response.IsSuccessStatusCode)
+          {
+            Debug.WriteLine($"Sent Discord webhook for {this.CharacterName}.");
+            if (!string.IsNullOrWhiteSpace(responseBody))
+            {
+              Debug.WriteLine(responseBody);
+            }
+            return;
+          }
+
+          if (!ShouldRetry(response.StatusCode, attempt))
+          {
+            Debug.WriteLine($"Discord webhook failed for {this.CharacterName} with status {(int)response.StatusCode} ({response.StatusCode}). Response: {responseBody}");
+            return;
+          }
+
+          var delay = GetRetryDelay(response.Headers, responseBody, attempt);
+          Debug.WriteLine($"Discord webhook retry {attempt}/{DISCORD_MAX_SEND_ATTEMPTS} for {this.CharacterName} after status {(int)response.StatusCode} ({response.StatusCode}). Waiting {delay.TotalSeconds:F1}s. Response: {responseBody}");
+          await Task.Delay(delay);
+        }
+        catch (HttpRequestException ex) when (attempt < DISCORD_MAX_SEND_ATTEMPTS)
+        {
+          var delay = GetExponentialBackoff(attempt);
+          Debug.WriteLine($"Discord webhook network error for {this.CharacterName}: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
+          await Task.Delay(delay);
+        }
+        catch (TaskCanceledException ex) when (attempt < DISCORD_MAX_SEND_ATTEMPTS)
+        {
+          var delay = GetExponentialBackoff(attempt);
+          Debug.WriteLine($"Discord webhook timeout for {this.CharacterName}: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
+          await Task.Delay(delay);
+        }
+        catch (HttpRequestException ex)
+        {
+          Debug.WriteLine($"Discord webhook network error for {this.CharacterName}: {ex.Message}");
+          return;
+        }
+        catch (TaskCanceledException ex)
+        {
+          Debug.WriteLine($"Discord webhook timeout for {this.CharacterName}: {ex.Message}");
+          return;
+        }
+      }
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+      var client = new HttpClient
+      {
+        Timeout = TimeSpan.FromSeconds(15)
+      };
+
+      client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+      client.DefaultRequestHeaders.UserAgent.ParseAdd("EveCommander-KeepstarWatcher/1.0");
+
+      return client;
+    }
+
+    private static bool ShouldRetry(HttpStatusCode statusCode, int attempt)
+    {
+      return attempt < DISCORD_MAX_SEND_ATTEMPTS
+        && (statusCode == HttpStatusCode.TooManyRequests
+          || statusCode == HttpStatusCode.RequestTimeout
+          || (int)statusCode >= 500);
+    }
+
+    private static TimeSpan GetRetryDelay(HttpResponseHeaders headers, string responseBody, int attempt)
+    {
+      var retryAfter = TryGetRetryDelay(headers, responseBody);
+      return retryAfter ?? GetExponentialBackoff(attempt);
+    }
+
+    private static TimeSpan? TryGetRetryDelay(HttpResponseHeaders headers, string responseBody)
+    {
+      if (headers.RetryAfter?.Delta is TimeSpan retryAfterDelta && retryAfterDelta > TimeSpan.Zero)
+      {
+        return retryAfterDelta + GetJitter();
+      }
+
+      if (headers.TryGetValues("X-RateLimit-Reset-After", out var rateLimitValues))
+      {
+        var rateLimitValue = rateLimitValues.FirstOrDefault();
+        if (double.TryParse(rateLimitValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var resetAfterSeconds)
+          && resetAfterSeconds > 0)
+        {
+          return TimeSpan.FromSeconds(resetAfterSeconds) + GetJitter();
+        }
+      }
+
+      if (!string.IsNullOrWhiteSpace(responseBody))
+      {
+        try
+        {
+          var rateLimitResponse = JsonSerializer.Deserialize<DiscordRateLimitResponse>(responseBody, DISCORD_JSON_OPTIONS);
+          if (rateLimitResponse?.RetryAfter > 0)
+          {
+            return TimeSpan.FromSeconds(rateLimitResponse.RetryAfter) + GetJitter();
+          }
+        }
+        catch (JsonException)
+        {
+        }
+      }
+
+      return null;
+    }
+
+    private static TimeSpan GetExponentialBackoff(int attempt)
+    {
+      var seconds = Math.Min(Math.Pow(2, attempt - 1), 10);
+      return TimeSpan.FromSeconds(seconds) + GetJitter();
+    }
+
+    private static TimeSpan GetJitter()
+    {
+      return TimeSpan.FromMilliseconds(Random.Shared.Next(150, 500));
+    }
+
+    private static IEnumerable<string> SplitDiscordMessage(string message)
+    {
+      var normalizedMessage = message.Replace("\r\n", "\n");
+      if (normalizedMessage.Length <= DISCORD_MAX_CONTENT_LENGTH)
+      {
+        yield return normalizedMessage;
+        yield break;
+      }
+
+      var currentChunk = new StringBuilder();
+      foreach (var line in normalizedMessage.Split('\n'))
+      {
+        if (currentChunk.Length == 0)
+        {
+          foreach (var chunk in SplitLine(line))
+          {
+            if (chunk.Length == DISCORD_MAX_CONTENT_LENGTH)
+            {
+              yield return chunk;
+            }
+            else
+            {
+              currentChunk.Append(chunk);
+            }
+          }
+          continue;
+        }
+
+        if (currentChunk.Length + 1 + line.Length <= DISCORD_MAX_CONTENT_LENGTH)
+        {
+          currentChunk.Append('\n').Append(line);
+          continue;
+        }
+
+        yield return currentChunk.ToString();
+        currentChunk.Clear();
+
+        foreach (var chunk in SplitLine(line))
+        {
+          if (chunk.Length == DISCORD_MAX_CONTENT_LENGTH)
+          {
+            yield return chunk;
+          }
+          else
+          {
+            currentChunk.Append(chunk);
+          }
+        }
+      }
+
+      if (currentChunk.Length > 0)
+      {
+        yield return currentChunk.ToString();
+      }
+    }
+
+    private static IEnumerable<string> SplitLine(string line)
+    {
+      if (line.Length <= DISCORD_MAX_CONTENT_LENGTH)
+      {
+        yield return line;
+        yield break;
+      }
+
+      for (var index = 0; index < line.Length; index += DISCORD_MAX_CONTENT_LENGTH)
+      {
+        var length = Math.Min(DISCORD_MAX_CONTENT_LENGTH, line.Length - index);
+        yield return line.Substring(index, length);
+      }
+    }
+
+    private sealed record DiscordWebhookPayload(
+      [property: JsonPropertyName("content")] string Content,
+      [property: JsonPropertyName("allowed_mentions")] DiscordAllowedMentions AllowedMentions);
+
+    private sealed record DiscordAllowedMentions(
+      [property: JsonPropertyName("parse")] string[] Parse);
+
+    private sealed record DiscordRateLimitResponse(
+      [property: JsonPropertyName("retry_after")] double RetryAfter);
   }
 }
