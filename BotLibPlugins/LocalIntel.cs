@@ -15,6 +15,7 @@ namespace BotLibPlugins
     private List<string> previousPilots = [];
     private List<string> previousGridPilots = [];
     private string? previousStatus = null;
+    private string? previousSystemName = null;
     private long lastChangeTime = 0;
     private long lastGridChangeTime = 0;
     private const long CHANGE_NOTIFICATION_DURATION = 1 * TimeSpan.TicksPerMinute;
@@ -119,11 +120,14 @@ namespace BotLibPlugins
           .OrderBy(name => name)
           .ToList();
 
+      // Check if we've changed systems
+      bool systemChanged = currentSystemName != previousSystemName;
+
       // Check if the pilot list or status has changed
       bool pilotsChanged = !currentPilotNames.SequenceEqual(previousPilots);
       bool statusChanged = currentStatus != previousStatus;
 
-      if (pilotsChanged || statusChanged || gridChanged)
+      if (pilotsChanged || statusChanged || gridChanged || systemChanged)
       {
         // Play audio alert if under attack
         if (currentStatus == "UnderAttack")
@@ -133,6 +137,16 @@ namespace BotLibPlugins
         else if (currentStatus == "NeutralsOnGrid" && statusChanged)
         {
           PlayNeutralAlert();
+        }
+        // Play audio alert if new pilots enter local while undocked
+        // BUT NOT if we just changed systems (new baseline)
+        else if (pilotsChanged && !bot.IsDocked() && !bot.IsDisconnected() && !systemChanged)
+        {
+          var pilotsEntered = currentPilotNames.Except(previousPilots).ToList();
+          if (pilotsEntered.Any())
+          {
+            PlayLocalChangeAlert();
+          }
         }
 
         // Send the report
@@ -150,6 +164,7 @@ namespace BotLibPlugins
 
         previousPilots = currentPilotNames;
         previousStatus = currentStatus;
+        previousSystemName = currentSystemName;
         lastChangeTime = DateTime.Now.Ticks;
       }
 
@@ -365,6 +380,17 @@ namespace BotLibPlugins
       Task.Run(() =>
       {
         Console.Beep(800, 300);
+      });
+    }
+
+    private void PlayLocalChangeAlert()
+    {
+      // Local change alert: Two quick beeps
+      Task.Run(() =>
+      {
+        Console.Beep(600, 150);
+        Thread.Sleep(100);
+        Console.Beep(600, 150);
       });
     }
   }
