@@ -1,6 +1,7 @@
 ﻿using eve_parse_ui;
 using read_memory_64_bit;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace BotLib
 {
@@ -54,6 +55,33 @@ namespace BotLib
       }
 
       return keys.AsReadOnly();
+    }
+
+    protected void LogDebug(string message, [CallerMemberName] string memberName = "")
+      => Log(PluginLogLevel.Debug, message, null, memberName);
+
+    protected void LogInformation(string message, [CallerMemberName] string memberName = "")
+      => Log(PluginLogLevel.Information, message, null, memberName);
+
+    protected void LogWarning(string message, [CallerMemberName] string memberName = "")
+      => Log(PluginLogLevel.Warning, message, null, memberName);
+
+    protected void LogError(string message, Exception? exception = null, [CallerMemberName] string memberName = "")
+      => Log(PluginLogLevel.Error, message, exception, memberName);
+
+    protected void Log(PluginLogLevel level, string message, Exception? exception = null, [CallerMemberName] string memberName = "")
+    {
+      PluginLogManager.Log(new PluginLogEntry
+      {
+        TimestampUtc = DateTimeOffset.UtcNow,
+        Level = level,
+        PluginName = Name,
+        CharacterName = string.IsNullOrWhiteSpace(CharacterName) ? "<unknown>" : CharacterName,
+        WindowId = WindowID,
+        MemberName = memberName,
+        Message = message,
+        Exception = exception?.ToString()
+      });
     }
 
     protected void CheckForNewSettings()

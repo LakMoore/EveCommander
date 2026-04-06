@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using Commander.Services;
+using System.Windows;
 
 namespace Commander
 {
@@ -7,6 +8,17 @@ namespace Commander
   /// </summary>
   public partial class App : Application
   {
+    protected override void OnStartup(StartupEventArgs e)
+    {
+      base.OnStartup(e);
+      PluginLoggingService.Initialize();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+      PluginLoggingService.Shutdown();
+      base.OnExit(e);
+    }
   }
 
 }

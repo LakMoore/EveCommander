@@ -241,17 +241,21 @@ namespace Commander
           CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
           Result.Content = "Null RootNode!";
           Result.Width = Double.NaN;
-
-          // try again?
-          if (CommanderMain.IsRunning())
-          {
-            await Task.Delay(5000);
-            await CommandClient();  // TODO: this could become an infinite stack!
-          }
           return;
         }
 
-        ParsedUserInterface _uiRoot = UIParser.ParseUserInterface(rootNode);
+        ParsedUserInterface _uiRoot;
+        try
+        {
+          _uiRoot = UIParser.ParseUserInterface(rootNode);
+        } 
+        catch (Exception ex)
+        {
+          CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
+          Result.Content = "Exception in Parser: " + ex.Message;
+          Result.Width = Double.NaN;
+          return;
+        }
 
         // update alive indicator
         aliveSpinnerIndex = (aliveSpinnerIndex + 1) % ALIVE_SPINNER.Length;

@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
@@ -31,6 +33,10 @@ namespace Commander
     public SettingsWindow()
     {
       InitializeComponent();
+      if (FindName("OpenLogFolderButton") is Button openLogFolderButton)
+      {
+        openLogFolderButton.Click += OpenLogFolderButton_Click;
+      }
 
       // copy current cache so cancel can revert
       _originalCache = PluginSettingsCache.GetCache().ToDictionary(kvp => kvp.PluginName, kvp => kvp.Settings.ToDictionary(k => k.Key, v => v.Value));
@@ -158,6 +164,29 @@ namespace Commander
 
       this.DialogResult = false;
       this.Close();
+    }
+
+    private void OpenLogFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+      try
+      {
+        var logDirectory = PluginLoggingService.GetLogDirectory();
+        Directory.CreateDirectory(logDirectory);
+
+        Process.Start(new ProcessStartInfo
+        {
+          FileName = logDirectory,
+          UseShellExecute = true
+        });
+      }
+      catch (System.ComponentModel.Win32Exception ex)
+      {
+        MessageBox.Show(this, $"Unable to open the log folder.\n\n{ex.Message}", "Open Log Folder", MessageBoxButton.OK, MessageBoxImage.Error);
+      }
+      catch (InvalidOperationException ex)
+      {
+        MessageBox.Show(this, $"Unable to open the log folder.\n\n{ex.Message}", "Open Log Folder", MessageBoxButton.OK, MessageBoxImage.Error);
+      }
     }
 
     private void BuildDiscordUI()

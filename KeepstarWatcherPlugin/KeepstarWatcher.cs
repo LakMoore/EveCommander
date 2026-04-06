@@ -1,7 +1,6 @@
 using BotLib;
 using eve_parse_ui;
 using read_memory_64_bit;
-using System.Diagnostics;
 using System.Drawing;
 using System.Globalization;
 using System.Net;
@@ -369,13 +368,13 @@ namespace BotLibPlugins
     {
       if (string.IsNullOrWhiteSpace(DiscordWebhookUrl))
       {
-        Debug.WriteLine($"Discord webhook URL is missing for {this.CharacterName}.");
+        LogWarning("Discord webhook URL is missing.");
         return;
       }
 
       if (!Uri.TryCreate(DiscordWebhookUrl.Trim(), UriKind.Absolute, out var webhookUri))
       {
-        Debug.WriteLine($"Discord webhook URL is invalid for {this.CharacterName}: '{DiscordWebhookUrl}'.");
+        LogWarning($"Discord webhook URL is invalid: '{DiscordWebhookUrl}'.");
         return;
       }
 
@@ -405,44 +404,44 @@ namespace BotLibPlugins
 
           if (response.IsSuccessStatusCode)
           {
-            Debug.WriteLine($"Sent Discord webhook for {this.CharacterName}.");
+            LogDebug($"Successfully sent Discord webhook chunk '{message}' ({message.Length} chars).");
             if (!string.IsNullOrWhiteSpace(responseBody))
             {
-              Debug.WriteLine(responseBody);
+              LogDebug($"Discord webhook response: {responseBody}");
             }
             return;
           }
 
           if (!ShouldRetry(response.StatusCode, attempt))
           {
-            Debug.WriteLine($"Discord webhook failed for {this.CharacterName} with status {(int)response.StatusCode} ({response.StatusCode}). Response: {responseBody}");
+            LogError($"Discord webhook failed with status {(int)response.StatusCode} ({response.StatusCode}). Response: {responseBody}");
             return;
           }
 
           var delay = GetRetryDelay(response.Headers, responseBody, attempt);
-          Debug.WriteLine($"Discord webhook retry {attempt}/{DISCORD_MAX_SEND_ATTEMPTS} for {this.CharacterName} after status {(int)response.StatusCode} ({response.StatusCode}). Waiting {delay.TotalSeconds:F1}s. Response: {responseBody}");
+          LogWarning($"Discord webhook retry {attempt}/{DISCORD_MAX_SEND_ATTEMPTS} after status {(int)response.StatusCode} ({response.StatusCode}). Waiting {delay.TotalSeconds:F1}s. Response: {responseBody}");
           await Task.Delay(delay);
         }
         catch (HttpRequestException ex) when (attempt < DISCORD_MAX_SEND_ATTEMPTS)
         {
           var delay = GetExponentialBackoff(attempt);
-          Debug.WriteLine($"Discord webhook network error for {this.CharacterName}: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
+          LogWarning($"Discord webhook network error: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
           await Task.Delay(delay);
         }
         catch (TaskCanceledException ex) when (attempt < DISCORD_MAX_SEND_ATTEMPTS)
         {
           var delay = GetExponentialBackoff(attempt);
-          Debug.WriteLine($"Discord webhook timeout for {this.CharacterName}: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
+          LogWarning($"Discord webhook timeout: {ex.Message}. Retrying in {delay.TotalSeconds:F1}s.");
           await Task.Delay(delay);
         }
         catch (HttpRequestException ex)
         {
-          Debug.WriteLine($"Discord webhook network error for {this.CharacterName}: {ex.Message}");
+          LogError("Discord webhook network error.", ex);
           return;
         }
         catch (TaskCanceledException ex)
         {
-          Debug.WriteLine($"Discord webhook timeout for {this.CharacterName}: {ex.Message}");
+          LogError("Discord webhook timeout.", ex);
           return;
         }
       }

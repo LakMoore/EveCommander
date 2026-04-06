@@ -94,12 +94,12 @@ namespace BotLib
 
     public Colony? GetNextColony()
     {
-      if (_UI.PlanetsWindow.Value?.Colonies?.Count == 0)
+      if (_UI.PlanetsWindow.Value?.Colonies?.Count() == 0)
         return null;
 
       var currentColony = GetSelectedColony();
       if (currentColony == null)
-        return _UI.PlanetsWindow.Value?.Colonies?[0];
+        return _UI.PlanetsWindow.Value?.Colonies?.FirstOrDefault();
 
       return _UI.PlanetsWindow.Value?.Colonies?
           .SkipWhile(c => c != currentColony)
@@ -248,9 +248,9 @@ namespace BotLib
       return _UI.Neocom.Value?.EveMenuButton.ToUIElement();
     }
 
-    public IReadOnlyList<Colony> GetAllColonies()
+    public IEnumerable<Colony>? GetAllColonies()
     {
-      return _UI.PlanetsWindow.Value?.Colonies ?? [];
+      return _UI.PlanetsWindow.Value?.Colonies;
     }
 
     public IReadOnlyList<UIElement> GetStandaloneBookmarks()

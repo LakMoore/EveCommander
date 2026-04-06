@@ -7,6 +7,7 @@
   <Grid Margin="10">
     <DockPanel LastChildFill="True">
       <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right">
+        <Button x:Name="OpenLogFolderButton" Padding="8" Margin="5">Open Log Folder</Button>
         <Button x:Name="OkButton" Padding="8" Margin="5" Width="75" Click="OkButton_Click">OK</Button>
         <Button x:Name="CancelButton" Padding="8" Margin="5" Width="75" Click="CancelButton_Click">Cancel</Button>
       </StackPanel>
