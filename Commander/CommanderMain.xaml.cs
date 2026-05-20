@@ -405,19 +405,22 @@ namespace Commander
           .ToList()
           .ForEach(gc =>
           {
-            var process = Process.GetProcessById(gc.processId);
-            if (process.CloseMainWindow())
+            try
             {
-              process.WaitForExit(5000); // wait 5 seconds for process to exit
-              if (!process.HasExited)
+              var process = Process.GetProcessById(gc.processId);
+              if (process.CloseMainWindow())
+              {
+                process.WaitForExit(5000); // wait 5 seconds for process to exit
+                if (!process.HasExited)
+                {
+                  process.Kill();
+                }
+              }
+              else
               {
                 process.Kill();
               }
-            }
-            else
-            {
-              process.Kill();
-            }
+            } catch { }
           });
     }
 
