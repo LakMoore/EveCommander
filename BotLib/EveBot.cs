@@ -149,8 +149,8 @@ namespace BotLib
 
     public bool IsPrimaryInventoryVisible()
     {
-      var mainInventory = _UI.InventoryWindows.Value.FirstOrDefault();
-      return mainInventory != null && mainInventory.WindowCaption == "Inventory";
+      var mainInventory = _UI.InventoryWindows.Value.FirstOrDefault(inventory => inventory.WindowCaption == "Inventory");
+      return mainInventory != null;
     }
 
     public InventoryWindowLeftTreeEntry? GetPIHoldInventoryEntry()
