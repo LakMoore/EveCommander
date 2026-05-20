@@ -297,6 +297,11 @@ namespace Commander
           }
         }
 
+        if (!CommanderMain.IsRunning())
+        {
+          return;
+        }
+
         var autoRunPlugins = CommanderMain.GetAutoRunPlugins();
         foreach (var plugin in autoRunPlugins)
         {
@@ -321,11 +326,6 @@ namespace Commander
           {
             return;
           }
-        }
-
-        if (!CommanderMain.IsRunning())
-        {
-          return;
         }
 
         // if we get here, we should be logged in with a character name
