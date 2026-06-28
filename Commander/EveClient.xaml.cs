@@ -361,13 +361,21 @@ namespace Commander
             Result.Width = Double.NaN;
           }
 
-          if (result.Background != null)
+          if (result.Background == null)
+          {
+            Background = Brushes.Transparent;
+          }
+          else
           {
             var b = (System.Drawing.Color)result.Background;
             Background = new SolidColorBrush(Color.FromArgb(b.A, b.R, b.G, b.B));
           }
 
-          if (result.Foreground != null)
+          if (result.Foreground == null)
+          {
+            Foreground = Brushes.Black;
+          }
+          else
           {
             var b = (System.Drawing.Color)result.Foreground;
             var br = new SolidColorBrush(Color.FromArgb(b.A, b.R, b.G, b.B));
