@@ -5,7 +5,7 @@ namespace BotLib
   public class PluginSetting
   {
     public string Key { get; set; } = string.Empty;
-    public string Value { get; set; } = string.Empty;
+    public Object? Value { get; set; } = null;
 
     public override string ToString()
     {
@@ -13,7 +13,7 @@ namespace BotLib
     }
 
     // override Equals and GetHashCode for proper comparison in HashSet
-    public override bool Equals(object? obj)
+    public override bool Equals(Object? obj)
     {
       if (obj is PluginSetting other)
       {

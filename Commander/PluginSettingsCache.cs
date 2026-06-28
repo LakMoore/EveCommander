@@ -58,7 +58,17 @@ namespace Commander
       {
         if (settings.FirstOrDefault(s => s.Key == info.Key) == null)
         {
-          settings.Add(new() { Key = info.Key, Value = string.Empty } );
+          settings.Add(new()
+          {
+            Key = info.Key,
+            Value = info.SettingType switch
+            {
+              BotLibSetting.Type.Boolean => false,
+              BotLibSetting.Type.Integer => 0,
+              BotLibSetting.Type.Decimal => 0m,
+              _ => string.Empty
+            }
+          });
         }
       }
 

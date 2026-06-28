@@ -14,8 +14,8 @@ namespace Commander
 {
   public partial class SettingsWindow : Window
   {
-    private Dictionary<string, Dictionary<string, string>> _originalCache = [];
-    private Dictionary<string, Dictionary<string, TextBox>> _textBoxes = [];
+    private Dictionary<string, Dictionary<string, Object?>> _originalCache = [];
+    private Dictionary<string, Dictionary<string, Control>> _controls = [];
     private DiscordAuthService? _discordAuth;
 
     // Discord UI elements
@@ -68,7 +68,7 @@ namespace Commander
       {
         var grp = new GroupBox() { Header = plugin.Name, Margin = new Thickness(5) };
         var panel = new StackPanel();
-        var tbDict = new Dictionary<string, TextBox>();
+        var controlDict = new Dictionary<string, Control>();
 
         foreach (var settingInfo in plugin.GetSettingsInfo())
         {
@@ -80,44 +80,70 @@ namespace Commander
             .Settings
             .FirstOrDefault(s => s.Key == settingInfo.Key)?
             .Value ?? string.Empty;
-          var tb = new TextBox() { Text = value, Width = 300 };
 
-          // configure textbox based on setting type
-          if (settingInfo.SettingType == BotLibSetting.Type.MultiLineText)
+          if (settingInfo.SettingType == BotLibSetting.Type.Boolean)
           {
-            tb.Height = 100;
-            tb.AcceptsReturn = true;
-            tb.TextWrapping = TextWrapping.Wrap;
-            tb.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
-          }
-          if (settingInfo.SettingType == BotLibSetting.Type.Integer)
-          {
-            tb.PreviewTextInput += (s, e) =>
-            {
-              e.Handled = !e.Text.All(c => char.IsDigit(c));
+            var isChecked = value is bool boolValue
+              ? boolValue
+              : bool.TryParse(value?.ToString(), out var parsedBoolValue) && parsedBoolValue;
+
+            var checkBox = new CheckBox() { 
+              IsChecked = isChecked, 
+              VerticalAlignment = VerticalAlignment.Center 
             };
-          }
-          if (settingInfo.SettingType == BotLibSetting.Type.Decimal)
-          {
-            tb.PreviewTextInput += (s, e) =>
+
+            // if the setting has a description, add a tooltip
+            if (!string.IsNullOrWhiteSpace(settingInfo.Description))
             {
-              e.Handled = !e.Text.All(c => char.IsDigit(c) || c == '.' || c == ',');
-            };
+              checkBox.ToolTip = settingInfo.Description;
+            }
+
+            sp.Children.Add(checkBox);
+            controlDict[settingInfo.Key] = checkBox;
           }
-          // if the setting has a description, add a tooltip
-          if (!string.IsNullOrWhiteSpace(settingInfo.Description))
+          else
           {
-            tb.ToolTip = settingInfo.Description;
+            var tb = new TextBox() { Text = value?.ToString() ?? string.Empty, Width = 300 };
+
+            // configure textbox based on setting type
+            if (settingInfo.SettingType == BotLibSetting.Type.MultiLineText)
+            {
+              tb.Height = 100;
+              tb.AcceptsReturn = true;
+              tb.TextWrapping = TextWrapping.Wrap;
+              tb.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
+            }
+            if (settingInfo.SettingType == BotLibSetting.Type.Integer)
+            {
+              tb.PreviewTextInput += (s, e) =>
+              {
+                e.Handled = !e.Text.All(c => char.IsDigit(c));
+              };
+            }
+            if (settingInfo.SettingType == BotLibSetting.Type.Decimal)
+            {
+              tb.PreviewTextInput += (s, e) =>
+              {
+                e.Handled = !e.Text.All(c => char.IsDigit(c) || c == '.' || c == ',');
+              };
+            }
+
+            // if the setting has a description, add a tooltip
+            if (!string.IsNullOrWhiteSpace(settingInfo.Description))
+            {
+              tb.ToolTip = settingInfo.Description;
+            }
+
+            sp.Children.Add(tb);
+            controlDict[settingInfo.Key] = tb;
           }
 
-          sp.Children.Add(tb);
           panel.Children.Add(sp);
-          tbDict[settingInfo.Key] = tb;
         }
 
         grp.Content = panel;
         PluginsStack.Children.Add(grp);
-        _textBoxes[plugin.Name] = tbDict;
+        _controls[plugin.Name] = controlDict;
       }
     }
 
@@ -125,7 +151,7 @@ namespace Commander
     {
       // write back values into the cache
       var cache = PluginSettingsCache.GetCache();
-      foreach (var plugin in _textBoxes)
+      foreach (var plugin in _controls)
       {
         var pluginEntry = cache.FirstOrDefault(p => p.PluginName == plugin.Key) ?? new PluginSettings() { PluginName = plugin.Key, Settings = [] };
 
@@ -133,9 +159,16 @@ namespace Commander
         {
           var setting = pluginEntry.Settings.FirstOrDefault(
             s => s.Key == kv.Key,
-            new PluginSetting() { Key = kv.Key, Value = string.Empty }
+            new PluginSetting() { Key = kv.Key, Value = null }
           );
-          setting.Value = kv.Value.Text;
+          if (kv.Value is TextBox textBox)
+          {
+            setting.Value = textBox.Text;
+          }
+          else if (kv.Value is CheckBox checkBox)
+          {
+            setting.Value = checkBox.IsChecked == true;
+          }
           pluginEntry.Settings.Add(setting);
         }
       }

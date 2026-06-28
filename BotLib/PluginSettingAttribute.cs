@@ -9,7 +9,8 @@ namespace BotLib
       SingleLineText,
       MultiLineText,
       Integer,
-      Decimal
+      Decimal,
+      Boolean
     }
 
     public required Type SettingType { get; set; }

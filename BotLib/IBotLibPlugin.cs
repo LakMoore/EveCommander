@@ -96,17 +96,30 @@ namespace BotLib
             var field = this.GetType().GetField(info.Key);
             if (field != null)
             {
-              if (field.FieldType == typeof(string))
+              var fieldType = Nullable.GetUnderlyingType(field.FieldType) ?? field.FieldType;
+
+              if (fieldType == typeof(string))
               {
-                field.SetValue(this, value);
+                field.SetValue(this, value.ToString());
               }
-              else if (field.FieldType == typeof(int) && int.TryParse(value, out int intValue))
+              else if (fieldType == typeof(int) && int.TryParse(value.ToString(), out int intValue))
               {
                 field.SetValue(this, intValue);
               }
-              else if (field.FieldType == typeof(bool) && bool.TryParse(value, out bool boolValue))
+              else if (fieldType == typeof(decimal) && decimal.TryParse(value.ToString(), out decimal decimalValue))
               {
-                field.SetValue(this, boolValue);
+                field.SetValue(this, decimalValue);
+              }
+              else if (fieldType == typeof(bool))
+              {
+                if (value is bool boolValue)
+                {
+                  field.SetValue(this, boolValue);
+                }
+                else if (bool.TryParse(value.ToString(), out bool parsedBoolValue))
+                {
+                  field.SetValue(this, parsedBoolValue);
+                }
               }
               // Add more type conversions as needed
             }
