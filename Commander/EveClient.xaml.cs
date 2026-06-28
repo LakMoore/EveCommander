@@ -2,6 +2,7 @@
 using eve_parse_ui;
 using read_memory_64_bit;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.Versioning;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,12 +16,23 @@ namespace Commander
   /// </summary>
   public partial class EveClient : UserControl
   {
+    private static readonly int MaxConcurrentUiRootScans =
+      int.TryParse(Environment.GetEnvironmentVariable("SANDERLING_UIROOT_MAX_CONCURRENT_SCANS"), out var configuredScanLimit)
+        ? Math.Max(1, configuredScanLimit)
+        : 2;
+
+    private static readonly SemaphoreSlim UiRootScanThrottle = new(MaxConcurrentUiRootScans, MaxConcurrentUiRootScans);
+
     private readonly string[] ALIVE_SPINNER = ["-", "\\", "|", "/"];
     private int aliveSpinnerIndex = 0;
     private CommanderClient? _commanderClient;
     private string? CurrentCharacterName = null;
     private long _lastErrorTime = 0;
     private Point? _mouseDownPoint;
+    private static readonly string ExceptionLogPath = Path.Combine(
+      Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+      "EveCommander",
+      "exceptions.log");
 
     // TODO: get this from the SDE
     private readonly List<int> cloakIDs = [11370, 11577, 11578, 14234, 14776,
@@ -64,6 +76,7 @@ namespace Commander
         Result.Width = Double.NaN;
         Result.Foreground = new SolidColorBrush(Colors.White);
         Debug.WriteLine(ex);
+        LogExceptionToFile("DoOneStep", ex);
 
         try
         {
@@ -72,6 +85,7 @@ namespace Commander
         catch (Exception ex2)
         {
           Debug.WriteLine(ex2);
+          LogExceptionToFile("DoOneStep:ServerSendError", ex2);
         }
       }
     }
@@ -94,13 +108,7 @@ namespace Commander
       CurrentCharacterName = characterName;
       Character.Content = characterName;
 
-      if (_commanderClient.GameClient.uiRootAddress == 0)
-      {
-        await FindUIRootAddress(_commanderClient.GameClient);
-      }
-
-      MemoryScanPanel.Width = 0;
-      DetailsPanel.Width = Double.NaN;
+      await ScanForRootAddress();
 
       // if maintitle is simply "Eve" then we are on the character select screen
       if (characterName == "EVE")
@@ -136,6 +144,19 @@ namespace Commander
       }
 
       UpdatePlugins();
+    }
+
+    private async Task ScanForRootAddress()
+    {
+      if (_commanderClient?.GameClient.uiRootAddress == 0)
+      {
+        MemoryScanPanel.Width = Double.NaN;
+        DetailsPanel.Width = 0;
+        await FindUIRootAddress(_commanderClient.GameClient);
+      }
+
+      MemoryScanPanel.Width = 0;
+      DetailsPanel.Width = Double.NaN;
     }
 
     private void UpdateGameClientForCharacter(
@@ -198,15 +219,22 @@ namespace Commander
       Result.Content = "";
       Result.Width = 0;
 
-      var address = await Task.Run(() => MemoryReader.FindUIRootAddressFromProcessId(cachedGameClient.processId));
-      if (address != null)
+      await UiRootScanThrottle.WaitAsync();
+      try
       {
-        cachedGameClient.uiRootAddress = address ?? 0;
-        Debug.WriteLine("Got uiRoot = " + address);
+        var address = await Task.Run(() => MemoryReader.FindUIRootAddressFromProcessId(cachedGameClient.processId));
+        if (address != null)
+        {
+          cachedGameClient.uiRootAddress = address ?? 0;
+          Debug.WriteLine("Got uiRoot = " + address);
 
-        Properties.Settings.Default.uiRootAddressCache = GameClientCache.SaveCache();
-        Properties.Settings.Default.Save(); // Persist the changes
-
+          Properties.Settings.Default.uiRootAddressCache = GameClientCache.SaveCache();
+          Properties.Settings.Default.Save(); // Persist the changes
+        }
+      }
+      finally
+      {
+        UiRootScanThrottle.Release();
       }
     }
 
@@ -216,19 +244,21 @@ namespace Commander
       if (CommanderClient?.GameClient == null)
         return;
 
-      if (CommanderClient?.GameClient.uiRootAddress != null)
+      await ScanForRootAddress();
+
+      if (CommanderClient?.GameClient.uiRootAddress > 0)
       {
         var rootNode = await Task.Run(() =>
         {
           try
           {
-            return MemoryReader.ReadMemory(CommanderClient.GameClient.processId, CommanderClient.GameClient.uiRootAddress)!;
+            return MemoryReader.ReadMemory(CommanderClient.GameClient.processId, CommanderClient.GameClient.uiRootAddress);
           }
           catch (Exception ex)
           {
+            LogExceptionToFile("CommandClient:ReadMemory", ex);
             Dispatcher.Invoke(() =>
             {
-              CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
               Result.Content = ex.Message;
               Result.Width = Double.NaN;
             });
@@ -238,9 +268,14 @@ namespace Commander
 
         if (rootNode == null)
         {
-          CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
-          Result.Content = "Null RootNode!";
-          Result.Width = Double.NaN;
+          // TODO: we should probably only do this if the exception was something that indicates
+          // the address is no longer valid, not for random exceptions that could be transient
+          //CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
+          if (Result.Width == 0)
+          {
+            Result.Content = "Null RootNode!";
+            Result.Width = Double.NaN;
+          }
           return;
         }
 
@@ -248,10 +283,17 @@ namespace Commander
         try
         {
           _uiRoot = UIParser.ParseUserInterface(rootNode);
-        } 
-        catch (Exception ex)
+        }
+        catch (FatalUiRootParseException ex)
         {
           CommanderClient.GameClient.uiRootAddress = 0; // force a rescan for the address
+          Result.Content = "Fatal parser exception. UI root will be re-scanned: " + ex.Message;
+          Result.Width = Double.NaN;
+          return;
+        }
+        catch (Exception ex)
+        {
+          LogExceptionToFile("CommandClient:UIParser", ex);
           Result.Content = "Exception in Parser: " + ex.Message;
           Result.Width = Double.NaN;
           return;
@@ -394,6 +436,11 @@ namespace Commander
 
         //// send the report
         //await SendReport(gridscoutOverview, wormholeCode);
+      } else
+      {
+        Result.Content = "Zero Root Address!";
+        Result.Width = Double.NaN;
+        return;
       }
 
       //long deltaTime = DateTime.Now.Ticks - lastPilotCountChangeTime;
@@ -411,6 +458,31 @@ namespace Commander
 
       return;
 
+    }
+
+    private void LogExceptionToFile(string context, Exception ex)
+    {
+      try
+      {
+        var logDirectory = Path.GetDirectoryName(ExceptionLogPath);
+        if (!string.IsNullOrWhiteSpace(logDirectory))
+        {
+          Directory.CreateDirectory(logDirectory);
+        }
+
+        var characterName = CurrentCharacterName ?? "Unknown";
+        var windowId = CommanderClient?.GameClient.mainWindowId ?? 0;
+        var processId = CommanderClient?.GameClient.processId ?? 0;
+
+        var logEntry =
+          $"[{DateTime.UtcNow:O}] Context={context}; Character={characterName}; WindowId={windowId}; ProcessId={processId}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}";
+
+        File.AppendAllText(ExceptionLogPath, logEntry);
+      }
+      catch (Exception logWriteException)
+      {
+        Debug.WriteLine(logWriteException);
+      }
     }
 
     private void UserControl_MouseEnter(object sender, MouseEventArgs e)
