@@ -55,14 +55,18 @@ namespace BotLibPlugins
       }
 
       var gridscoutOverview = bot.GetAllOverviewWindows()
-          .FirstOrDefault(ow => ow.OverviewTabName.Equals("gridscout", StringComparison.CurrentCultureIgnoreCase));
+          .FirstOrDefault(ow => ow.Tabs.Any(tab => 
+              tab.Selected
+              && tab.Text.Contains("grid", StringComparison.CurrentCultureIgnoreCase)
+              && tab.Text.Contains("scout", StringComparison.CurrentCultureIgnoreCase)
+          ));
 
       if (gridscoutOverview == null)
       {
         return new PluginResult
         {
           WorkDone = true,
-          Message = "No GridScout Overview Found",
+          Message = "No selected GridScout Overview tab Found",
           Background = Color.Red,
           Foreground = Color.White,
         };
