@@ -116,9 +116,11 @@ namespace Commander
       {
         if (item is not CommanderCharacter c) return false;
         if (selected == "Online" && !c.IsOnline) return false;
+        if (selected == "Logged In" && !c.IsLoggedIn) return false;
         if (selected == "Offline" && c.IsOnline) return false;
+        if (selected == "Not Logged In" && c.IsLoggedIn) return false;
         if (locationSelected != null && locationSelected != "All" && c.Location != locationSelected) return false;
-        return true; // Matches both filters
+        return true; // Matches all filters
       };
     }
 
@@ -132,8 +134,10 @@ namespace Commander
       _vm.CharactersView.Filter = item =>
       {
         if (item is not CommanderCharacter c) return false;
-        if (onlineSelected == "Online" && !c.IsOnline) return false;
-        if (onlineSelected == "Offline" && c.IsOnline) return false;
+        if (selected == "Online" && !c.IsOnline) return false;
+        if (selected == "Logged In" && !c.IsLoggedIn) return false;
+        if (selected == "Offline" && c.IsOnline) return false;
+        if (selected == "Not Logged In" && c.IsLoggedIn) return false;
         if (selected != null && selected != "All" && c.Location != selected) return false;
         return true; // Matches both filters
       };

@@ -26,6 +26,18 @@ namespace Commander
       }
     }
 
+    private bool _isLoggedIn;
+    public bool IsLoggedIn
+    {
+      get => _isLoggedIn;
+      set
+      {
+        if (_isLoggedIn == value) return;
+        _isLoggedIn = value;
+        OnPropertyChanged(nameof(IsLoggedIn));
+      }
+    }
+
     // New property to back UI selection; keeps selection state in data so virtualized rows update correctly
     private bool _isSelected;
     [XmlIgnore]

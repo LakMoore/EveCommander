@@ -22,12 +22,14 @@
       <Button Margin="4,4" Padding="4" Click="SortByName_Click">Name</Button>
       <Button Margin="4,4" Padding="4" Click="SortByPlugins_Click">Plugins</Button>
 
-      <TextBlock Margin="16,4,4,4" VerticalAlignment="Center">Filter IsOnline:</TextBlock>
+      <TextBlock Margin="16,4,4,4" VerticalAlignment="Center">Filter Status:</TextBlock>
       <ComboBox x:Name="IsOnlineFilterCombo" Width="100" Margin="4" SelectionChanged="IsOnlineFilter_SelectionChanged"
                 Style="{DynamicResource {x:Type ComboBox}}"
                 ItemContainerStyle="{DynamicResource {x:Type ComboBoxItem}}">
-        <ComboBoxItem Content="All" />
-        <ComboBoxItem Content="Online" IsSelected="True" />
+        <ComboBoxItem Content="All" IsSelected="True" />
+        <ComboBoxItem Content="Logged In" />
+        <ComboBoxItem Content="Online" />
+        <ComboBoxItem Content="Not Logged In" />
         <ComboBoxItem Content="Offline" />
       </ComboBox>
 
