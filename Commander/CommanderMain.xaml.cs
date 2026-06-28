@@ -1,17 +1,14 @@
 ﻿using BotLib;
+using eve_parse_ui;
 using NHotkey;
 using NHotkey.Wpf;
 using read_memory_64_bit;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
-using System.Net.Http;
+using System.Reflection;
 using System.Runtime.Versioning;
-using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
-using System.Reflection;
-using System.Windows.Threading;
 
 namespace Commander
 {
@@ -63,18 +60,35 @@ namespace Commander
 
       try
       {
+        // register critical keybinds here
         HotkeyManager.Current.AddOrReplace("Stop", Key.F8, ModifierKeys.Control, StopKeyHandler);
-        HotkeyManager.Current.AddOrReplace("NextClient", Key.OemBackslash, ModifierKeys.None, NextClientHandler);
       }
-      catch (NHotkey.HotkeyAlreadyRegisteredException ex)
+      catch
       {
-        // Advise the user hotkey is already registered and isn't going to work
+        // Advise the user the stop hotkey is already registered and isn't going to work
         // ask the user to exit or continue
-        var result = MessageBox.Show($"Hotkey registration failed.\nThe hotkeys (including \"Stop\"!) will not work for this instance of Commander.\nRecommend you kill this instance and use the one with registred hotkeys.\nDo you want to quit this instance?", "Hotkey Registration Failed", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+        var result = System.Windows.MessageBox.Show(
+          $"CRITICAL Hotkey registration failed.\nThe hotkeys (including \"Stop\"!) will not work for this instance of Commander.\nRecommend you kill this instance and use the one with registred hotkeys.\nDo you want to quit this instance?", 
+          "Hotkey Registration Failed", 
+          System.Windows.MessageBoxButton.YesNo, 
+          MessageBoxImage.Exclamation
+        );
         if (result == MessageBoxResult.Yes) {
           Application.Current.Shutdown();
           return;
         }
+      }
+
+      try
+      {
+        // register non-critical keybinds here, they can fail silently without impacting the user too much
+        HotkeyManager.Current.AddOrReplace("NextClient", Key.OemBackslash, ModifierKeys.None, NextClientHandler);
+        HotkeyManager.Current.AddOrReplace("VisualiseClient", Key.F8, ModifierKeys.Alt, VisualiseCurrentClientHandler);
+
+      }
+      catch
+      {
+        // Can silently fail as these are not critical keybinds
       }
 
       await StartAsync();
@@ -484,9 +498,61 @@ namespace Commander
         })
         .ToHashSet();
 
+      var loggedInNames = ClientPanel.Children.Cast<EveClient>()
+        .Select(ec => {
+          if (ec.CommanderClient?.GameClient.mainWindowTitle?.StartsWith("EVE - ") == true)
+          {
+            return ec.CommanderClient?.GameClient.mainWindowTitle?.Length > 6
+              ? ec.CommanderClient?.GameClient.mainWindowTitle[6..]
+              : "NONAME!!!";
+          }
+          return "NONAME!!!";
+        })
+        .ToHashSet();
+
       foreach (var character in GameClientCache.GetAllCharacters())
       {
         character.IsOnline = onlineNames.Contains(character.Name);
+        character.IsLoggedIn = loggedInNames.Contains(character.Name);
+      }
+    }
+
+    private async void VisualiseCurrentClientHandler(object? sender, HotkeyEventArgs e)
+    {
+      // open a new Visualise window
+      if (Debugger.IsAttached)
+      {
+        // get the process ID of the currently active window
+        var windowHandle = WinApi.GetForegroundWindow();
+        var windowId = (long)windowHandle;
+        WinApi.GetWindowThreadProcessId(windowHandle, out var processId);
+
+        var cachedGameClient = GameClientCache.GetGameClient((int)processId, (int)windowId);
+
+        if (cachedGameClient.GameClient.uiRootAddress == 0)
+        {
+          System.Windows.MessageBox.Show(
+            "No UI root address found for the current client. Please ensure the client is running and try again.", 
+            "Error",
+            System.Windows.MessageBoxButton.OK, 
+            MessageBoxImage.Error
+          );
+          return;
+        }
+
+        var _uiRoot = await Task.Run(() =>
+        {
+          UITreeNode rootNode = MemoryReader.ReadMemory(cachedGameClient.GameClient.processId, cachedGameClient.GameClient.uiRootAddress)!;
+          if (rootNode == null) return null;
+          return UIParser.ParseUserInterface(rootNode);
+        });
+
+        if (_uiRoot != null)
+        {
+          var visualise = new VisualiseUI();
+          visualise.Show();
+          await visualise.VisualiseAsync(_uiRoot);
+        }
       }
     }
   }

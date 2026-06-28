@@ -4,6 +4,8 @@ using System.Linq;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Text.Json;
+using System.Globalization;
 
 namespace Commander
 {
@@ -12,6 +14,8 @@ namespace Commander
   /// </summary>
   public partial class VisualiseUI : Window
   {
+    private UITreeNodeNoDisplayRegion? _selectedNode;
+
     public VisualiseUI()
     {
       InitializeComponent();
@@ -34,6 +38,11 @@ namespace Commander
       }
 
       var newAncestors = new List<UITreeNodeNoDisplayRegion>(ancestors) { node };
+
+      foreach (var child in node.Children ?? [])
+      {
+        child.Parent = node;
+      }
 
       var newPath = string.Join(" > ", newAncestors.Select(n =>
       {
@@ -61,7 +70,7 @@ namespace Commander
         var margin = new Thickness(region.X, region.Y, 0, 0);
 
         var dictEntriesSeq = (node.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
-            .Select(de => de.Key + " = " + de.Value?.ToString());
+            .Select(de => de.Key + " = " + FormatDictEntryValue(de.Value));
 
         var otherEntriesSeq = (node.otherDictEntriesKeys ?? Enumerable.Empty<string>());
 
@@ -85,7 +94,7 @@ namespace Commander
             var nName = n.GetNameFromDictEntries();
             var nDescription = nType + (nName != null ? " [" + nName + "]" : string.Empty);
             var nDict = (n.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
-                .Select(de => de.Key + " = " + de.Value?.ToString());
+                .Select(de => de.Key + " = " + FormatDictEntryValue(de.Value));
             var nOther = n.otherDictEntriesKeys ?? Enumerable.Empty<string>();
             var combined = string.Join("\n", new[] { nDescription }.Concat(nDict).Concat(nOther));
             return combined;
@@ -136,6 +145,7 @@ namespace Commander
 
       var rawEntriesSplit = fullPath.Split(new[] { " > " }, System.StringSplitOptions.None);
       var entries = rawEntriesSplit.Select(s => s?.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToArray();
+      _selectedNode = ancestors.LastOrDefault();
 
       // Build dialog window with wrapping buttons and a scrollable text area for tag details
       var win = new Window
@@ -156,7 +166,12 @@ namespace Commander
       outerGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
       outerGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
+      var exportButton = new Button { Content = "Export", Margin = new Thickness(2), Padding = new Thickness(12, 4, 12, 4), HorizontalAlignment = HorizontalAlignment.Right };
       var wrap = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(2) };
+      var topRow = new DockPanel { LastChildFill = true };
+      DockPanel.SetDock(exportButton, Dock.Right);
+      topRow.Children.Add(exportButton);
+      topRow.Children.Add(wrap);
 
       // Text box to display tag details (scrollable)
       var detailsText = new TextBox
@@ -189,6 +204,18 @@ namespace Commander
         }
       }
 
+      exportButton.Click += (_, __) =>
+      {
+        if (_selectedNode == null)
+        {
+          System.Windows.MessageBox.Show(this, "Select a UI element before exporting.", "Export", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+          return;
+        }
+
+        var json = JsonSerializer.Serialize(CreateExportDocument(_selectedNode), new JsonSerializerOptions { WriteIndented = true });
+        ShowJsonWindow(json);
+      };
+
       // Helper to add separator before adding new element
       void AddSeparator()
       {
@@ -207,6 +234,7 @@ namespace Commander
 
         nodeBtn.Click += (_, __) =>
         {
+          _selectedNode = node;
           detailsText.Text = $"Selected: {nodeDesc}\r\n\r\nTag:\r\n{nodeTag}";
           RemoveElementsAfterButton(nodeBtn);
 
@@ -229,6 +257,7 @@ namespace Commander
             {
               if (childCombo.SelectedItem is ComboBoxItem selectedItem && selectedItem.Tag is UITreeNodeNoDisplayRegion selectedChild)
               {
+                _selectedNode = selectedChild;
                 // Remove the combobox (and its preceding separator)
                 var comboIndex = wrap.Children.IndexOf(childCombo);
                 if (comboIndex > 0 && wrap.Children[comboIndex - 1] is TextBlock)
@@ -242,7 +271,7 @@ namespace Commander
                 var childName = selectedChild.GetNameFromDictEntries();
                 var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
                 var childDict = (selectedChild.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
-                    .Select(de => de.Key + " = " + de.Value?.ToString());
+                    .Select(de => de.Key + " = " + FormatDictEntryValue(de.Value));
                 var childOther = selectedChild.otherDictEntriesKeys ?? Enumerable.Empty<string>();
                 var childTag = string.Join("\n", new[] { childDesc }.Concat(childDict).Concat(childOther));
 
@@ -270,6 +299,8 @@ namespace Commander
       {
         // Clear everything after the clicked button
         RemoveElementsAfterButton(clickedButton);
+
+        _selectedNode = ancestors[clickedIndex];
 
         // Show details for clicked node
         string details;
@@ -318,7 +349,7 @@ namespace Commander
                 var childName = selectedNode.GetNameFromDictEntries();
                 var childDesc = childType + (childName != null ? " [" + childName + "]" : string.Empty);
                 var childDict = (selectedNode.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
-                    .Select(de => de.Key + " = " + de.Value?.ToString());
+                    .Select(de => de.Key + " = " + FormatDictEntryValue(de.Value));
                 var childOther = selectedNode.otherDictEntriesKeys ?? Enumerable.Empty<string>();
                 var childTag = string.Join("\n", new[] { childDesc }.Concat(childDict).Concat(childOther));
 
@@ -358,8 +389,8 @@ namespace Commander
         }
       }
       // Add controls to grid: wrap on top row, detailsText on bottom row
-      Grid.SetRow(wrap, 0);
-      outerGrid.Children.Add(wrap);
+      Grid.SetRow(topRow, 0);
+      outerGrid.Children.Add(topRow);
 
       Grid.SetRow(detailsText, 1);
       outerGrid.Children.Add(detailsText);
@@ -415,6 +446,115 @@ namespace Commander
           }
         }
       }
+    }
+
+    private void ExportButton_Click(object sender, RoutedEventArgs e)
+    {
+      if (_selectedNode == null)
+      {
+        System.Windows.MessageBox.Show(this, "Select a UI element before exporting.", "Export", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        return;
+      }
+
+      var json = JsonSerializer.Serialize(CreateExportDocument(_selectedNode), new JsonSerializerOptions { WriteIndented = true });
+      ShowJsonWindow(json);
+    }
+
+    private static ExportUiNode CreateExportDocument(UITreeNodeNoDisplayRegion selectedNode)
+    {
+      var ancestors = new List<UITreeNodeNoDisplayRegion>();
+      for (var current = selectedNode; current != null; current = current.Parent)
+      {
+        ancestors.Add(current);
+      }
+
+      ancestors.Reverse();
+      return CreatePrunedExportNode(ancestors, 0);
+    }
+
+    private static ExportUiNode CreatePrunedExportNode(IReadOnlyList<UITreeNodeNoDisplayRegion> ancestors, int index)
+    {
+      var node = ancestors[index];
+      var children = new List<ExportUiNode>();
+
+      if (index + 1 < ancestors.Count)
+      {
+        children.Add(CreatePrunedExportNode(ancestors, index + 1));
+      }
+      else
+      {
+        children.AddRange((node.Children ?? []).Select(CreateFullExportNode));
+      }
+
+      return CreateExportNode(node, children);
+    }
+
+    private static ExportUiNode CreateFullExportNode(UITreeNodeNoDisplayRegion node)
+    {
+      return CreateExportNode(node, (node.Children ?? []).Select(CreateFullExportNode).ToList());
+    }
+
+    private static ExportUiNode CreateExportNode(UITreeNodeNoDisplayRegion node, List<ExportUiNode> children)
+    {
+        var dictEntries = (node.dictEntriesOfInterest ?? Enumerable.Empty<KeyValuePair<string, object>>())
+          .ToDictionary(item => item.Key, item => FormatDictEntryValue(item.Value));
+
+      return new ExportUiNode
+      {
+        PythonObjectTypeName = node.pythonObjectTypeName,
+        Name = node.GetNameFromDictEntries(),
+        DictEntriesOfInterest = dictEntries,
+        Children = children
+      };
+    }
+
+    private void ShowJsonWindow(string json)
+    {
+      var jsonWindow = new Window
+      {
+        Title = "Export JSON",
+        Owner = this,
+        WindowStartupLocation = WindowStartupLocation.CenterOwner,
+        Width = Math.Max(600, this.ActualWidth * 0.75),
+        Height = Math.Max(400, this.ActualHeight * 0.75)
+      };
+
+      jsonWindow.Content = new TextBox
+      {
+        Text = json,
+        IsReadOnly = true,
+        TextWrapping = TextWrapping.Wrap,
+        AcceptsReturn = true,
+        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+        HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+        FontFamily = new FontFamily("Consolas"),
+        Margin = new Thickness(10)
+      };
+
+      jsonWindow.ShowDialog();
+    }
+
+    private static string? FormatDictEntryValue(object? value)
+    {
+      if (value == null)
+        return null;
+
+      return value switch
+      {
+        double doubleValue => doubleValue.ToString("G17", CultureInfo.InvariantCulture),
+        float floatValue => floatValue.ToString("G9", CultureInfo.InvariantCulture),
+        decimal decimalValue => decimalValue.ToString(CultureInfo.InvariantCulture),
+        IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
+        _ => value.ToString()
+      };
+    }
+
+    private sealed record ExportUiNode
+    {
+      public required string PythonObjectTypeName { get; init; }
+      public string? Name { get; init; }
+      public Dictionary<string, string?> DictEntriesOfInterest { get; init; } = new();
+      public List<ExportUiNode> Children { get; init; } = [];
     }
   }
 }
