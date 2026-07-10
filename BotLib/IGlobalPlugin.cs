@@ -10,7 +10,7 @@ namespace BotLib
   /// </summary>
   public abstract class IGlobalPlugin()
   {
-    public abstract Task<PluginResult> DoWork(bool isRunning, IEnumerable<GameClient> runningClients, IEnumerable<IBotLibPlugin> allPlugins);
+    public abstract Task<PluginResult> DoWork(bool isRunning, IEnumerable<ClientGroup> runningClients, IEnumerable<IBotLibPlugin> allPlugins);
 
     public abstract string Name { get; }
 

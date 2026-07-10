@@ -73,7 +73,7 @@ namespace Commander
         foreach (var settingInfo in plugin.GetSettingsInfo())
         {
           var sp = new StackPanel() { Orientation = Orientation.Horizontal, Margin = new Thickness(2) };
-          sp.Children.Add(new TextBlock() { Text = settingInfo.Key, Width = 200, VerticalAlignment = VerticalAlignment.Center });
+          sp.Children.Add(new TextBlock() { Text = settingInfo.Label ?? settingInfo.Key, Width = 200, VerticalAlignment = VerticalAlignment.Center });
 
           var value = cache
             .FirstOrDefault(p => p.PluginName == plugin.Name)?

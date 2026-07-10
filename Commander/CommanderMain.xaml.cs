@@ -309,9 +309,8 @@ namespace Commander
         var runningClients = ClientPanel.Children.Cast<EveClient>()
           .Select(ec => ec.CommanderClient)
           .Where(ec => ec != null)
-          .Cast<CommanderClient>()
-          .Select(cc => cc.GameClient);
-
+          .Cast<ClientGroup>();
+          
         var globalPlugins = GetGlobalPlugins();
         var allPlugins = GetAllPlugins();
         foreach (var gp in globalPlugins)

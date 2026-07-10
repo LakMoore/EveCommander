@@ -12,5 +12,10 @@ namespace BotLib
     public UIElement(UITreeNodeWithDisplayRegion original) : base(original)
     {
     }
+
+    public bool IsVisible()
+    {
+      return TotalDisplayRegionVisible.Width * TotalDisplayRegionVisible.Height > 0;
+    }
   }
 }

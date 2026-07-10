@@ -1,5 +1,6 @@
 ﻿using BotLib;
 using eve_parse_ui;
+using Microsoft.EntityFrameworkCore;
 using read_memory_64_bit;
 using System.Diagnostics;
 using System.IO;
@@ -25,13 +26,13 @@ namespace Commander
 
     private readonly string[] ALIVE_SPINNER = ["-", "\\", "|", "/"];
     private int aliveSpinnerIndex = 0;
-    private CommanderClient? _commanderClient;
+    private ClientGroup? _commanderClient;
     private string? CurrentCharacterName = null;
     private long _lastErrorTime = 0;
     private Point? _mouseDownPoint;
     private static readonly string ExceptionLogPath = Path.Combine(
       Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-      "EveCommander",
+      "Commander",
       "exceptions.log");
 
     // TODO: get this from the SDE
@@ -45,7 +46,7 @@ namespace Commander
       InitializeComponent();
     }
 
-    internal CommanderClient? CommanderClient
+    internal ClientGroup? CommanderClient
     {
       get
       {
@@ -97,7 +98,7 @@ namespace Commander
     /// </summary>
     /// <param name="cachedGameClient"></param>
     /// <returns></returns>
-    internal async Task StartAsync(CommanderClient cachedGameClient)
+    internal async Task StartAsync(ClientGroup cachedGameClient)
     {
       _commanderClient = cachedGameClient;
 
@@ -351,6 +352,7 @@ namespace Commander
           var result = await plugin.DoWork(_uiRoot, CommanderClient.GameClient, CommanderMain.IsRunning(), CommanderMain.GetAllPlugins());
           if (!string.IsNullOrWhiteSpace(result.Message))
           {
+            LogActionToFile(result.Message);
             Result.Content = result.Message;
             Result.Width = Double.NaN;
           }
@@ -371,10 +373,10 @@ namespace Commander
         }
 
         // if we get here, we should be logged in with a character name
-        var selectedCharacter = CommanderClient.Characters
+        var selectedBotCharacter = CommanderClient.Characters
             .FirstOrDefault(c => c.Name == CurrentCharacterName);
 
-        if (selectedCharacter == null)
+        if (selectedBotCharacter is not CommanderCharacter selectedCharacter)
         {
           Result.Content = "Unknown Character";
           Result.Width = Double.NaN;
@@ -386,7 +388,7 @@ namespace Commander
         PluginDescription.Content = selectedCharacter.EnabledPluginDescription;
 
         var availablePlugins = selectedCharacter.Plugins
-          .Where(p => p.IsEnabled && !p.IsCompleted)
+          .Where(p => p.IsEnabled)
           .ToList();
 
         foreach (var plugin in availablePlugins)
@@ -399,6 +401,7 @@ namespace Commander
 
           if (!string.IsNullOrWhiteSpace(result.Message))
           {
+            LogActionToFile(result.Message);
             Result.Content = result.Message;
             Result.Width = Double.NaN;
           }
@@ -478,6 +481,28 @@ namespace Commander
           $"[{DateTime.UtcNow:O}] Context={context}; Character={characterName}; WindowId={windowId}; ProcessId={processId}{Environment.NewLine}{ex}{Environment.NewLine}{Environment.NewLine}";
 
         File.AppendAllText(ExceptionLogPath, logEntry);
+      }
+      catch (Exception logWriteException)
+      {
+        Debug.WriteLine(logWriteException);
+      }
+    }
+
+    private void LogActionToFile(string actionText)
+    {
+      try
+      {
+        var logDirectory = Path.GetDirectoryName(ExceptionLogPath);
+        if (!string.IsNullOrWhiteSpace(logDirectory))
+        {
+          Directory.CreateDirectory(logDirectory);
+        }
+
+        var characterName = CurrentCharacterName ?? "Unknown";
+
+        var logEntry = $"[{DateTime.UtcNow:O}] {actionText}\n";
+
+        File.AppendAllText(Path.Combine(logDirectory!, characterName + ".log"), logEntry);
       }
       catch (Exception logWriteException)
       {

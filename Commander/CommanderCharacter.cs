@@ -7,9 +7,6 @@ namespace Commander
 {
   public record CommanderCharacter : BotCharacter, INotifyPropertyChanged
   {
-    [XmlIgnore]
-    public IEnumerable<IBotLibPlugin> Plugins { get; set; } = Enumerable.Empty<IBotLibPlugin>();
-
     private bool _isOnline;
     /// <summary>
     /// Indicates whether the character is currently online.
@@ -79,15 +76,5 @@ namespace Commander
     {
       PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-
-    public string EnabledPluginDescription => Plugins
-        .Where(p => p.IsEnabled)
-        .Select(p => p.Name)
-        .Count() switch
-    {
-      0 => "No plugins enabled",
-      1 => Plugins.First(p => p.IsEnabled).Name,
-      _ => $"{Plugins.Count(p => p.IsEnabled)} plugins enabled"
-    };
   }
 }

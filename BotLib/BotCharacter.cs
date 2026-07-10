@@ -1,9 +1,23 @@
-﻿namespace BotLib
+﻿using System.Xml.Serialization;
+
+namespace BotLib
 {
   public record BotCharacter
   {
     public required string Name { get; set; }
     public required string Location { get; set; }
     public bool? IsAlphaClone { get; set; }
+    [XmlIgnore]
+    public IEnumerable<IBotLibPlugin> Plugins { get; set; } = [];
+
+    public string EnabledPluginDescription => Plugins
+        .Where(p => p.IsEnabled)
+        .Select(p => p.Name)
+        .Count() switch
+    {
+      0 => "No plugins enabled",
+      1 => Plugins.First(p => p.IsEnabled).Name,
+      _ => $"{Plugins.Count(p => p.IsEnabled)} plugins enabled"
+    };
   }
 }

@@ -25,7 +25,7 @@ namespace BotLib
       set => _IsEnabled = value;
     }
 
-    public bool IsCompleted
+    public virtual bool IsCompleted
     {
       get => _IsCompleted;
     }
@@ -35,6 +35,7 @@ namespace BotLib
     public record PluginSettingInfo
     {
       public required string Key;
+      public required string Label;
       public required string Description;
       public required BotLibSetting.Type SettingType;
     }
@@ -50,7 +51,7 @@ namespace BotLib
         var attr = field.GetCustomAttribute<BotLibSetting>();
         if (attr != null)
         {
-          keys.Add(new() { Key = field.Name, Description = attr.Description ?? "", SettingType = attr.SettingType });
+          keys.Add(new() { Key = field.Name, Label = attr.Label ?? field.Name, Description = attr.Description ?? "", SettingType = attr.SettingType });
         }
       }
 
