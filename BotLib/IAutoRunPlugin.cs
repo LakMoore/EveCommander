@@ -16,5 +16,10 @@ namespace BotLib
 
     public string? CharacterName { get; set; }
 
+    public virtual bool IsPaused
+    {
+      get => false;
+    }
+
   }
 }

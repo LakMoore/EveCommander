@@ -30,6 +30,11 @@ namespace BotLib
       get => _IsCompleted;
     }
 
+    public virtual bool IsPaused
+    {
+      get => false;
+    }
+
     private HashSet<PluginSetting>? _settings;
 
     public record PluginSettingInfo

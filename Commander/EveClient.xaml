@@ -22,6 +22,7 @@
     <StackPanel Orientation="Horizontal" Margin="10,10,10,10" Grid.Column="0">
       <Label x:Name="Alive" Content="-" Width="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
       <Label x:Name="Character" Content="Name" Width="150" VerticalAlignment="Center" />
+        <Label x:Name="PauseIndicator" Content="Paused" Margin="8,0,0,0" Padding="6,0" VerticalAlignment="Center" Visibility="Collapsed" Background="OrangeRed" Foreground="White" />
       <StackPanel x:Name="DetailsPanel" Orientation="Horizontal" Visibility="Visible">
         <Label x:Name="SolarSystem" Content="System" VerticalAlignment="Center"/>
         <Label x:Name="Result" Content="" Width="0" VerticalAlignment="Center"/>

@@ -7,8 +7,25 @@ namespace BotLib
     public required string Name { get; set; }
     public required string Location { get; set; }
     public bool? IsAlphaClone { get; set; }
+    private IEnumerable<IBotLibPlugin> _plugins = [];
+
     [XmlIgnore]
-    public IEnumerable<IBotLibPlugin> Plugins { get; set; } = [];
+    public IEnumerable<IBotLibPlugin> Plugins
+    {
+      get => _plugins;
+      set
+      {
+        if (ReferenceEquals(_plugins, value))
+          return;
+
+        foreach (var plugin in _plugins.OfType<IDisposable>())
+        {
+          plugin.Dispose();
+        }
+
+        _plugins = value ?? [];
+      }
+    }
 
     public string EnabledPluginDescription => Plugins
         .Where(p => p.IsEnabled)

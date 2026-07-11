@@ -1,9 +1,6 @@
 ﻿using eve_parse_ui;
-using System.Diagnostics;
 using System.Drawing;
-using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
-using WindowsInput;
 
 namespace BotLib
 {
@@ -39,12 +36,7 @@ namespace BotLib
 
     public bool IsAutopilotDestinationSet()
     {
-      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers?.Count > 0;
-    }
-
-    public UIElement? AutopilotMenuButton()
-    {
-      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.AutopilotMenuButton.ToUIElement();
+      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers.Count() > 0;
     }
 
     public bool IsAutopilotRouteVisible()
@@ -132,49 +124,42 @@ namespace BotLib
       return _UI.PlanetaryImportExportUI.Value?.CustomsList;
     }
 
-    public bool IsWaitingForNumericInput()
+    public InventoryWindow? getPrimaryInventoryWindow()
     {
-      return _UI.InputModal.Value != null && _UI.InputModal.Value.InputType == InputModal.Type.Numeric;
-    }
+      return _UI.InventoryWindows.Value
+        .FirstOrDefault(iw => iw.UiNode.GetNameFromDictEntries() == "InventoryStation");
 
-    public bool IsWaitingForTextInput()
-    {
-      return _UI.InputModal.Value != null && _UI.InputModal.Value.InputType == InputModal.Type.Text;
-    }
-
-    public UIElement? PITransferButton()
-    {
-      return _UI.PlanetaryImportExportUI.Value?.TransferButton.ToUIElement();
     }
 
     public bool IsPrimaryInventoryVisible()
     {
-      var mainInventory = _UI.InventoryWindows.Value.FirstOrDefault(inventory => inventory.WindowCaption == "Inventory");
-      return mainInventory != null;
+      return getPrimaryInventoryWindow() != null;
     }
 
     public InventoryWindowLeftTreeEntry? GetPIHoldInventoryEntry()
     {
-      return _UI.InventoryWindows.Value
-          .SelectMany(i => i
-              .LeftTreePanel
-              .Entries
-              .SelectMany(lte => lte.Children)
-              .Where(child => child.Text == "Planetary Commodities Hold")
-          )
-          .FirstOrDefault();
+      return getPrimaryInventoryWindow()?
+        .LeftTreePanel
+        .Entries
+        .SelectMany(lte => lte.Children)  // PI Hold is nested inside the cargo bay
+        .FirstOrDefault(child => child.Text == "Planetary Commodities Hold");
     }
 
     public InventoryWindowLeftTreeEntry? GetFleetHangarEntry()
     {
-      return _UI.InventoryWindows.Value
-          .SelectMany(i => i
-              .LeftTreePanel
-              .Entries
-              .SelectMany(lte => lte.Children)
-              .Where(child => child.Text == "Fleet Hangar")
-          )
-          .FirstOrDefault();
+      return getPrimaryInventoryWindow()?
+        .LeftTreePanel
+        .Entries
+        .SelectMany(lte => lte.Children)  // Fleet Hangar is nested inside the cargo bay
+        .FirstOrDefault(child => child.Text == "Fleet Hangar");
+    }
+
+    public InventoryWindowLeftTreeEntry? GetCargoBay()
+    {
+      return getPrimaryInventoryWindow()?
+        .LeftTreePanel
+        .Entries
+        .FirstOrDefault(entry => entry.UiNode.GetNameFromDictEntries() == "ShipHangar");
     }
 
     public IEnumerable<InventoryWindow> InventoryWindows()
@@ -185,9 +170,14 @@ namespace BotLib
     public UIElement? AutopilotNextWaypoint()
     {
       var routeMarkers = _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers;
-      if (routeMarkers == null || routeMarkers.Count == 0)
+      if (routeMarkers == null || !routeMarkers.Any())
         return null;
-      return routeMarkers[0].UiNode.ToUIElement();
+      return routeMarkers.First().UiNode.ToUIElement();
+    }
+
+    public IEnumerable<InfoPanelRouteElementMarker> AutopilotRoute()
+    {
+      return _UI.InfoPanelContainer.Value?.InfoPanelRoute?.RouteElementMarkers ?? [];
     }
 
     public IEnumerable<ContextMenuEntry> ContextMenuEntries()
@@ -232,20 +222,6 @@ namespace BotLib
     public bool DoesCharacterSelectionScreenShowAlphaStatus()
     {
       return _UI.CharacterSelectionScreen.Value?.AccountIsAlpha == true;
-    }
-
-    public UIElement? LogoutButton()
-    {
-      return _UI.Neocom.Value?.PanelCommands?.FirstOrDefault(cmd =>
-          cmd.Text.Equals("Log off", StringComparison.CurrentCultureIgnoreCase) == true
-      )?
-      .UiNode
-      .ToUIElement();
-    }
-
-    public UIElement? EveMenuButton()
-    {
-      return _UI.Neocom.Value?.EveMenuButton.ToUIElement();
     }
 
     public IEnumerable<Colony>? GetAllColonies()
@@ -313,7 +289,7 @@ namespace BotLib
 
     // TODO: get this from the SDE
     private readonly List<int> cloakIDs = [11370, 11577, 11578, 14234, 14776,
-            14778, 14780, 14782, 15790, 16126, 20561, 20563, 20565, 32260];
+      14778, 14780, 14782, 15790, 16126, 20561, 20563, 20565, 32260];
 
     public ShipUIModuleButton? GetCloakModule()
     {
@@ -345,30 +321,9 @@ namespace BotLib
       return _UI.ShipUI.Value?.HitpointsPercent;
     }
 
-    readonly ColorComponents AutoPilotRouteColor = new()
-    {
-      R = 94,
-      G = 100,
-      B = 27,
-      A = 200
-    };
-
     public IEnumerable<InfoWindow> GetInfoWindows()
     {
       return _UI.InfoWindows.Value;
-    }
-
-    public bool OnAutoPilotRoute(OverviewWindowEntry e)
-    {
-      if (e != null)
-      {
-        var icon = e.UiNode.GetDescendantsByType("Sprite")
-          .FirstOrDefault(u =>
-            u.GetNameFromDictEntries()?.Equals("iconSprite", StringComparison.OrdinalIgnoreCase) == true
-          );
-        return UIParser.GetColorPercentFromDictEntries(icon) == AutoPilotRouteColor;
-      }
-      return false;
     }
 
     public bool HasInvuln()
@@ -470,6 +425,10 @@ namespace BotLib
     {
       return _UI.MessageBoxes.Value;
     }
+    public MarketOrdersWindow? MarketOrders()
+    {
+      return _UI.MarketOrdersWindow.Value;
+    }
 
     public MarketOrdersWindow.Tab? MarketOrdersTab()
     {
@@ -492,6 +451,86 @@ namespace BotLib
       }
 
       return localChat.Userlist?.VisibleUsers ?? [];
+    }
+
+    public (int? manufacturing, int? science, int? reaction) GetAvailableSlots()
+    {
+      var manufacturing = _UI.IndustryWindow.Value?.ManufacturingSlotsAvailable;
+      var science = _UI.IndustryWindow.Value?.ScienceSlotsAvailable;
+      var reaction = _UI.IndustryWindow.Value?.ReactionSlotsAvailable;
+      return (manufacturing, science, reaction);
+    }
+
+    public UIElement? IndustrySearchTextbox()
+    {
+      return _UI.IndustryWindow.Value?.SearchTextbox?.ToUIElement();
+    }
+
+    public string IndustrySearchTextboxValue()
+    {
+      return UIParser.GetAllContainedDisplayTexts(
+        _UI.IndustryWindow.Value?.SearchTextbox?.GetDescendantsByName("textLabel").FirstOrDefault()
+      ).FirstOrDefault() ?? string.Empty;
+    }
+
+    public IEnumerable<BlueprintEntry> GetBlueprintEntries()
+    {
+      return _UI.IndustryWindow.Value?.AvailableBlueprintEntries ?? [];
+    }
+
+    public IndustryWindow? GetIndustryWindow()
+    {
+      return _UI.IndustryWindow.Value;
+    }
+
+    public IndustryCombo? GetIndustryInputLocation()
+    {
+      return _UI.IndustryWindow.Value?.InventoryInputContainer;
+    }
+
+    public IndustryCombo? GetIndustryOutputLocation()
+    {
+      return _UI.IndustryWindow.Value?.InventoryOutputContainer;
+    }
+
+    public IEnumerable<ComboBoxEntry> GetComboBoxEntries()
+    {
+      return _UI.ComboBoxEntries.Value;
+    }
+
+    public UIElement? getIndustryRunCount()
+    {
+      return _UI.IndustryWindow.Value?.Runs.ToUIElement();
+    }
+
+    public bool IndustryMissingSkills()
+    {
+      return _UI.IndustryWindow.Value?.MissingSkills == true;
+    }
+
+    public IndustryTab? BlueprintIndustryTab()
+    {
+      return _UI.IndustryWindow.Value?.BlueprintTab;
+    }
+
+    public IndustryCombo? IndustryBlueprintCombo()
+    {
+      return _UI.IndustryWindow.Value?.BlueprintCombo;
+    }
+
+    public int IndustryDurationInMinutes()
+    {
+      return _UI.IndustryWindow.Value?.DurationInMinutes ?? 0;
+    }
+
+    public int? IndustryOutputQuantity()
+    {
+      return _UI.IndustryWindow.Value?.OutputQuantity;
+    }
+
+    public IndustryTab? JobsIndustryTab()
+    {
+      return _UI.IndustryWindow.Value?.JobsTab;
     }
   }
 }

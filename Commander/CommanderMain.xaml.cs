@@ -311,8 +311,9 @@ namespace Commander
           .Where(ec => ec != null)
           .Cast<ClientGroup>();
           
-        var globalPlugins = GetGlobalPlugins();
+        var globalPlugins = GetGlobalPlugins().Where(plugin => !plugin.IsPaused);
         var allPlugins = GetAllPlugins();
+
         foreach (var gp in globalPlugins)
         {
           await gp.DoWork(_isRunning, runningClients, allPlugins);

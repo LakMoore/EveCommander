@@ -14,5 +14,10 @@ namespace BotLib
 
     public abstract string Name { get; }
 
+    public virtual bool IsPaused
+    {
+      get => false;
+    }
+
   }
 }

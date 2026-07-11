@@ -345,7 +345,7 @@ namespace Commander
           return;
         }
 
-        var autoRunPlugins = CommanderMain.GetAutoRunPlugins();
+        var autoRunPlugins = CommanderMain.GetAutoRunPlugins().Where(p => !p.IsPaused);
         foreach (var plugin in autoRunPlugins)
         {
           plugin.CharacterName = CurrentCharacterName;
@@ -387,16 +387,23 @@ namespace Commander
 
         PluginDescription.Content = selectedCharacter.EnabledPluginDescription;
 
+        var allPlugins = CommanderMain.GetAllPlugins();
+
         var availablePlugins = selectedCharacter.Plugins
-          .Where(p => p.IsEnabled)
+          .Where(p => p.IsEnabled && !p.IsPaused)
           .ToList();
 
+        // update the pause indicator if any of the enabled plugins are paused
+        var isSomethingPaused = selectedCharacter.Plugins.Any(p => p.IsEnabled && p.IsPaused);
+        UpdatePauseIndicator(isSomethingPaused);
+
+        // order of execution is important
         foreach (var plugin in availablePlugins)
         {
           var result = await plugin.DoWork(
             _uiRoot,
             CommanderClient.GameClient,
-            CommanderMain.GetAllPlugins()
+            allPlugins
           );
 
           if (!string.IsNullOrWhiteSpace(result.Message))
@@ -461,6 +468,20 @@ namespace Commander
 
       return;
 
+    }
+
+    private void UpdatePauseIndicator(bool isSomethingPaused)
+    {
+      PauseIndicator.Visibility = isSomethingPaused ? Visibility.Visible : Visibility.Collapsed;
+
+      if (isSomethingPaused)
+      {
+        PauseIndicator.Content = "Paused";
+      }
+      else
+      {
+        PauseIndicator.Content = string.Empty;
+      }
     }
 
     private void LogExceptionToFile(string context, Exception ex)
